@@ -1,4 +1,4 @@
-import os, json, shutil, fnmatch, re, time
+import os, json, shutil, fnmatch, re
 from datetime import datetime
 from dbfread import DBF
 import csv
@@ -28,9 +28,11 @@ for runName in runList:
     #------------------
     #process video feed data using file names of video first segments (000 in filename)
     videoStreamList = []
+    EVByLastName = {}
     runVideoFeedsPath = runDataPath + '/' + runName + '/video_feeds'
     lastStreamPrefix = ''
     earliestStartTime = datetime.now()
+    mostVideoSegments = 0
     for streamFilename in os.listdir(runVideoFeedsPath):
         if fnmatch.fnmatch(streamFilename, '*000.mp4'):
             filename_root = streamFilename[:-8]
@@ -59,6 +61,16 @@ for runName in runList:
             else:
                 raise NameError('Failed to parse streamName')
 
+            #get EV number and last name from filename if available
+            match = re.search(r'(EV.)-(.*)', streamName)
+            if match is not None:
+                EVNumberStr = match.group(1)
+                lastName = match.group(2).lower()
+                EVByLastName[lastName] = EVNumberStr
+                print("Video lastName: " + match.group(2))
+            else:
+                raise NameError('Failed to parse lastName')
+
             #parse number of video segments
             maxDigitVal = 0
             for file in os.listdir(runVideoFeedsPath):
@@ -74,6 +86,8 @@ for runName in runList:
             else:
                 numberOfVideoSegments = maxDigitVal + 1
                 print("Video segments: " + str(numberOfVideoSegments))
+                if numberOfVideoSegments > mostVideoSegments:
+                    mostVideoSegments = numberOfVideoSegments
 
             #assemble Dict object
             streamDict = {}
@@ -82,6 +96,8 @@ for runName in runList:
             streamDict['filename_root'] = filename_root
             streamDict['start_time'] = isoStartTime
             streamDict['number_of_segments'] = numberOfVideoSegments
+            streamDict['EV_number'] = EVNumberStr
+            streamDict['last_name'] = lastName.capitalize()
 
             videoStreamList.append(streamDict.copy())
 
@@ -111,11 +127,11 @@ for runName in runList:
         match = re.search(r'"(.*M)  (.*)"', item)
         if match is not None:
             #get date from the runName string and time from txt for
-            timeVal = time.strptime(runName[0:10] + " " + match.group(1), "%Y-%m-%d %I:%M:%S %p")
+            timeVal = datetime.strptime(runName[0:10] + " " + match.group(1), "%Y-%m-%d %I:%M:%S %p")
             # if len(timeStamp) == 10:
             #     timeStamp = "0" + timeStamp
             message = match.group(2)
-            isoTimeStr = time.strftime("%Y-%m-%dT%H:%M:%S-06:00", timeVal)
+            isoTimeStr = datetime.strftime(timeVal, "%Y-%m-%dT%H:%M:%S-06:00")
             eventDataRow = isoTimeStr + '|' + message
             eventList.append(eventDataRow)
     eventList.sort()
@@ -126,7 +142,7 @@ for runName in runList:
     f.close()
 
     #decode color crew names from converted events txt data (#TODO: this is quite crude)
-    sirnameByColor = {}
+    lastnameByColor = {}
     firstnameByColor = {}
     print('Decoding crew names')
     for event in eventList:
@@ -136,26 +152,27 @@ for runName in runList:
                 subjectMatch = re.search(r'Subject (.*) (.*) selected', event)
                 if subjectMatch is not None:
                     firstnameByColor[color] = subjectMatch.group(1)
-                    sirnameByColor[color] = subjectMatch.group(2)
-                    print(color + ' crew name: ' + firstnameByColor[color] + ' ' + sirnameByColor[color])
+                    lastnameByColor[color] = subjectMatch.group(2)
+                    print(color + ' crew name: ' + firstnameByColor[color] + ' ' + lastnameByColor[color])
 
 
     #------------------
-    #convert DBF data to JSON for each color folder
+    #convert DBF data to JSON and csv for each color folder
     DBFTagnameData = []
     DBFWideData = []
-    print('Converting DBF files to JSON')
+    print('Processing DBF files')
+    os.makedirs(runProcessedPath + '/telemetry', exist_ok=True)
     for color in colors:
         for file in os.listdir(runDBFPath + '/' + color):
             if fnmatch.fnmatch(file, '*(Tagname)*.DBF'):
-                print('Importing Tagname DBF')
+                print('Importing ' + color.lower() + ' Tagname DBF')
                 DBFTagnameData = [rec for rec in DBF(runDBFPath + '/' + color + '/' + file)]
-                print('Writing Tagname json')
-                with open(runProcessedPath + '/' + color.lower() + '_tagname.json', 'w') as outfile:
+                print('Writing ' + color.lower() + ' Tagname json')
+                with open(runProcessedPath + '/telemetry/' + color.lower() + '_tagname.json', 'w') as outfile:
                     json.dump(DBFTagnameData, outfile, indent=4, default=str)
 
             if fnmatch.fnmatch(file, '*(Wide)*.DBF'):
-                print('Reading Wide DBF')
+                print('Importing ' + color.lower() + ' Wide DBF')
                 DBFWideData = [rec for rec in DBF(runDBFPath + '/' + color + '/' + file)]
 
                 #write all to one JSON
@@ -169,12 +186,37 @@ for runName in runList:
 
                 #write individual csvs, one for each data field
                 for tagnameRec in DBFTagnameData:
-                    print('Writing ' + color.lower() + "_" + str(tagnameRec['TTagIndex']) + '.csv')
-                    writer = open(runProcessedPath + '/' + color.lower() + '_' + str(tagnameRec['TTagIndex']) + '.csv', "w")
+                    print('Writing wide ' + color.lower() + "_" + str(tagnameRec['TTagIndex']) + '.csv')
+                    writer = open(runProcessedPath + '/telemetry/' + color.lower() + '_' + str(tagnameRec['TTagIndex']) + '.csv', "w")
                     for wideRec in DBFWideData:
                         outputLine = '{0}|{1}|{2}\n'.format(wideRec['Time'], wideRec['Millitm'], wideRec[str(tagnameRec['TTagIndex'])])
                         writer.write(outputLine)
                     writer.close()
 
+    #------------------
+    #create project JSON
+    projectDict = {}
+    tempDict = {}
+    tempDict['run_name'] = runName
+    tempDict['start_datetime'] = datetime.strftime(earliestStartTime, "%Y-%m-%dT%H:%M:%S-06:00")
+    tempDict['duration_seconds'] = mostVideoSegments * 60 * 60
+    projectDict['run_metadata'] = tempDict.copy()
+
+    tempDict = {}
+    for color in colors:
+        tempDict2 = {}
+        tempDict2['firstname'] = firstnameByColor[color]
+        tempDict2['lastname'] = lastnameByColor[color]
+        tempDict[color.lower()] = tempDict2.copy()
+        #find corresponding last name in video data to infer EV number
+        tempDict2['EV_number'] = EVByLastName[lastnameByColor[color].lower()]
+    projectDict['colors'] = tempDict.copy()
+
+    projectDict['videos'] = videoStreamList.copy()
+
+    #write project JSON file
+    with open(runProcessedPath + '/run_metadata.json', 'w') as outfile:
+        json.dump(projectDict, outfile, indent=4, default=str)
+
+
 print ('done')
-# print (videoStreamList)
