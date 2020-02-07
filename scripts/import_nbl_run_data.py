@@ -1,7 +1,9 @@
 import os, json, shutil, fnmatch, re
 from datetime import datetime
+from datetime import timedelta
+from dateutil.relativedelta import relativedelta
 from dbfread import DBF
-import csv
+import subprocess
 
 runDataPath = '../_website/_webroot/run_data'
 
@@ -25,14 +27,15 @@ for runName in runList:
     runProcessedPath = runDataPath + '/' + runName + '/_processed'
     os.makedirs(runProcessedPath, exist_ok=True)
 
+    runVideoFeedsPath = runDataPath + '/' + runName + '/video_feeds'
+
     #------------------
     #process video feed data using file names of video first segments (000 in filename)
     videoStreamList = []
     EVByLastName = {}
-    runVideoFeedsPath = runDataPath + '/' + runName + '/video_feeds'
     lastStreamPrefix = ''
     earliestStartTime = datetime.now()
-    mostVideoSegments = 0
+    latestStopTime = datetime.now() - relativedelta(years=100)
     for streamFilename in os.listdir(runVideoFeedsPath):
         if fnmatch.fnmatch(streamFilename, '*000.mp4'):
             filename_root = streamFilename[:-8]
@@ -43,11 +46,11 @@ for runName in runList:
             if match is not None:
                 dateStr = match.group(1)
                 timeStr = match.group(2).replace('-', ':')
-                isoStartTime = dateStr + "T" + timeStr + '-06:00'
-                print("Video start time: " + isoStartTime)
+                startTimeIsoStr = dateStr + "T" + timeStr + '-06:00'
+                print("Video start time: " + startTimeIsoStr)
 
                 #track time of earliest video - this is the run start time
-                isoStartTimeTimeObj = datetime.strptime(isoStartTime, "%Y-%m-%dT%H:%M:%S-06:00")
+                isoStartTimeTimeObj = datetime.strptime(startTimeIsoStr, "%Y-%m-%dT%H:%M:%S-06:00")
                 if isoStartTimeTimeObj < earliestStartTime:
                     earliestStartTime = isoStartTimeTimeObj
             else:
@@ -85,22 +88,52 @@ for runName in runList:
                 raise NameError('Something went wrong counting video segments')
             else:
                 numberOfVideoSegments = maxDigitVal + 1
-                print("Video segments: " + str(numberOfVideoSegments))
-                if numberOfVideoSegments > mostVideoSegments:
-                    mostVideoSegments = numberOfVideoSegments
 
-            #assemble Dict object
+            #---------------
+            #use external ffprobe command to get each video segment duration
+            videoSegmentsList = []
+            totalDuration = 0
+            for segmentFilename in os.listdir(runVideoFeedsPath):
+                if segmentFilename.startswith(filename_root): #only get video segments that match this root (000) video
+                    print("Processing video segment: " + segmentFilename)
+                    tempDict = {}
+                    videoFullPath = runVideoFeedsPath + '\\' + segmentFilename
+                    # videoFormatString = os.popen('ffprobe -i "' + videoFullPath + '" -show_format').read()
+                    tt = subprocess.Popen('ffprobe -i "' + videoFullPath + '" -show_format',
+                                          stdout=subprocess.PIPE,
+                                          stderr=subprocess.PIPE,
+                                          stdin=subprocess.PIPE)
+                    videoFormatString, stderr = tt.communicate()
+                    videoFormatString = str(videoFormatString)
+                    for line in videoFormatString.split('\\r\\n'):
+                        if line.startswith('duration'):
+                            duration = float(line[9:])
+                            tempDict['segment_filename'] = segmentFilename
+                            tempDict['duration_seconds'] = duration
+                            tempDict['start_time_seconds'] = totalDuration
+                            totalDuration = totalDuration + duration
+                            break
+                    videoSegmentsList.append(tempDict.copy())
+            #calculate the stop time of this stream using the start time above and adding the total duration of all segments
+            streamStopTime = isoStartTimeTimeObj + timedelta(seconds=totalDuration)
+            streamStopTimeIsoStr = datetime.strftime(streamStopTime, "%Y-%m-%dT%H:%M:%S-06:00")
+            if streamStopTime > latestStopTime:
+                latestStopTime = streamStopTime
+
+            #assemble Dict object for this stream
             streamDict = {}
 
             streamDict['stream_name'] = streamName
             streamDict['filename_root'] = filename_root
-            streamDict['start_time'] = isoStartTime
+            streamDict['stream_start_datetime'] = startTimeIsoStr
+            streamDict['stream_stop_datetime'] = streamStopTimeIsoStr
+            streamDict['duration_seconds'] = float(totalDuration)
             streamDict['number_of_segments'] = numberOfVideoSegments
             streamDict['EV_number'] = EVNumberStr
             streamDict['last_name'] = lastName.capitalize()
+            streamDict['video_segments'] = videoSegmentsList.copy()
 
             videoStreamList.append(streamDict.copy())
-
 
     #------------------
     #process run DBF telemetry
@@ -199,7 +232,8 @@ for runName in runList:
     tempDict = {}
     tempDict['run_name'] = runName
     tempDict['start_datetime'] = datetime.strftime(earliestStartTime, "%Y-%m-%dT%H:%M:%S-06:00")
-    tempDict['duration_seconds'] = mostVideoSegments * 60 * 60
+    tempDict['stop_datetime'] = datetime.strftime(latestStopTime, "%Y-%m-%dT%H:%M:%S-06:00")
+    tempDict['duration_seconds'] = (latestStopTime - earliestStartTime).total_seconds()
     projectDict['run_metadata'] = tempDict.copy()
 
     tempDict = {}
@@ -207,9 +241,9 @@ for runName in runList:
         tempDict2 = {}
         tempDict2['firstname'] = firstnameByColor[color]
         tempDict2['lastname'] = lastnameByColor[color]
-        tempDict[color.lower()] = tempDict2.copy()
         #find corresponding last name in video data to infer EV number
         tempDict2['EV_number'] = EVByLastName[lastnameByColor[color].lower()]
+        tempDict[color.lower()] = tempDict2.copy()
     projectDict['colors'] = tempDict.copy()
 
     projectDict['videos'] = videoStreamList.copy()
