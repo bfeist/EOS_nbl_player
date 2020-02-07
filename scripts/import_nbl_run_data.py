@@ -93,8 +93,12 @@ for runName in runList:
             #use external ffprobe command to get each video segment duration
             videoSegmentsList = []
             totalDuration = 0
-            for segmentFilename in os.listdir(runVideoFeedsPath):
-                if segmentFilename.startswith(filename_root): #only get video segments that match this root (000) video
+
+            #get sorted list of video segments
+            lst = os.listdir(runVideoFeedsPath)
+            lst.sort()
+            for segmentFilename in lst:
+                if segmentFilename.startswith(filename_root): #only pay attention to video segments that match this root (000) video
                     print("Processing video segment: " + segmentFilename)
                     tempDict = {}
                     videoFullPath = runVideoFeedsPath + '\\' + segmentFilename
@@ -136,7 +140,7 @@ for runName in runList:
             videoStreamList.append(streamDict.copy())
 
     #------------------
-    #process run DBF telemetry
+    #process run telemetry
     runDBFPath = runDataPath + '/' + runName + '/DBF_telemetry'
 
     #get array of color values for this run
@@ -174,7 +178,7 @@ for runName in runList:
         f.write(event + '\n')
     f.close()
 
-    #decode color crew names from converted events txt data (#TODO: this is quite crude)
+    #decode color crew names from converted events txt data (#TODO: this is quite fragile if naming isn't consisten within txt files)
     lastnameByColor = {}
     firstnameByColor = {}
     print('Decoding crew names')
