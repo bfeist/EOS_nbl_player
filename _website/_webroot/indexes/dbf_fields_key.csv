@@ -1,0 +1,19 @@
+field_name|description|low_value|high_value|units
+EMU_DEPTH|Depth|-1|41|FT
+FM1_P_ACFM|Gas Flow|4.5|9|ACFM
+FM1_P_SCFM|Supply Gas|4.5|20|SCFM
+FM2_P_SCFM|Return Gas|4.5|20|SCFM
+FM2_P_ACFM|Gas Flow|4.5|9|ACFM
+FM3_P_GPH|Water Flow|-10|10|GPH
+PT1_P_PSIA|Ambient Pressure|-1|18|PSIA
+PT3_P_PSIA|Suit Pressure|-1|27|PSIA
+SUIT_DP|Delta Pressure|3.5|5.0|PSID
+GS_PT1_P_PSIG|Gas Supply Pressure|45|130|PSIG
+BGS_PT_PSIG|BGS Supply Pressure|180|300|PSIG
+WS_PT1_P_PSI|Water Supply Pressure|30|70|PSIG
+WS_FM1_P_GPH|C1 Water Flow|-1|300|GPH
+WS_FM2_P_GPH|C1 Water Flow|-1|300|GPH
+WS_TT1_P_TEMP|A1 Water Supply Temp.|30|45|Degrees F
+WC1_TT1_P_TEMP|Chiller 1 Water Temp.|30|45|Degrees F
+WC2_TT1_P_TEMP|Chiller 1 Water Temp.|30|45|Degrees F
+OVERPRESS|New value that shows 0 or 1 if the suit delta pressure exceeded 6PSID|0|1|
