@@ -1,4 +1,9 @@
 *.iml
 run_data/
+node_modules/
+vendors/
+_website/_webroot/js
+_website/_webroot/css
+_website/_webroot/nblvisualizer_v3.html
 .idea/
 .DS_Store

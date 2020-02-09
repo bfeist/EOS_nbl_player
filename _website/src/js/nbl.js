@@ -1,0 +1,466 @@
+
+var missionStartTimeSeconds = 30233.5;
+var missionDurationSeconds = 4988;
+
+var blue = '#3498DB';
+var purple = '#9B59B6';
+var green = '#1ABB9C';
+var aero = '#9CC2CB';
+var red = '#E74C3C';
+var dark = '#34495E';
+var yellow = '#cc9e22';
+var orange = '#cc741b';
+var labelcolor = '#999999';
+
+var chartWidth = 120;
+
+var gChartLayout = {
+    autosize: true,
+    height: 200,
+    // width: '100%',
+    showlegend: false,
+    displayModeBar: false,
+    plot_bgcolor: '#000000',
+    paper_bgcolor: '#000000',
+    margin: {
+        t: 10, //top margin
+        l: 25, //left margin
+        r: 0, //right margin
+        b: 60 //bottom margin
+    },
+    xaxis: {
+        autorange: true,
+        showgrid: true,
+        zeroline: false,
+        showline: true,
+        autotick: true,
+        linecolor: '#FFFFFF',
+        linewidth: 1,
+        showticklabels: true,
+        ticks: 'inside',
+        tickfont: {
+            size: 12,
+            color: labelcolor
+        },
+        automargin: true,
+        hoverinfo: 'y',
+        hoverformat: '.2r'
+    },
+    yaxis: {
+        autorange: true,
+        linecolor: labelcolor,
+        linewidth: 1,
+        showticklabels: true,
+        ticks: 'inside',
+        tickfont: {
+            size: 12,
+            color: labelcolor
+        }
+    }
+    // shapes: [{
+    //     type: 'line',
+    //     xref: 'x',
+    //     yref: 'paper',
+    //     x0: 1,
+    //     y0: 0,
+    //     x1: 1,
+    //     y1: 1,
+    //     line: {
+    //         color: '#FF0000',
+    //         width: 1
+    //     }
+    // }]
+};
+
+var gSuitTelemetryData = [];
+var gTOCData = [];
+var gTimer;
+var gFieldNames = [];
+
+var gRunsData = []; //loaded from Ajax. Array of run names that are also folder names for that run's data
+var gDBFFieldsKeyData = {}; //loaded from Ajax csv
+
+var gSelectedRun = ''; //current run selected for playback
+
+
+$( document ).ready(function() {
+    console.log("ready!");
+
+    var video = document.getElementById('player0');
+    var source = document.createElement('source');
+    // source.setAttribute('src', '/video/JSC_NBL_2_rendered.mp4');
+    source.setAttribute('src', 'http://nbl.apolloinrealtime.org/JSC_NBL_2_rendered.mp4x');
+
+    video.appendChild(source);
+    video.load();
+    // video.muted = true;
+
+    $.when(ajaxGetRunsJSON(), ajaxGetDBFFieldsKey()).done(function () {
+        gSelectedRun = gRunsData[0]; //choose first run in list as default to load
+
+        initNavigator();
+        createCharts();
+        setEventHandlers();
+        video.play();
+        startInterval();
+    });
+});
+
+function setEventHandlers() {
+    var slider = document.getElementById("myRange");
+
+    document.getElementById("player0").addEventListener("play", function() { startInterval();}, true);
+    document.getElementById("player0").addEventListener("pause", function() { clearInterval(gTimer);}, true);
+}
+
+function startInterval() {
+    clearInterval(gTimer);
+    gTimer = setInterval(function(){
+        var missionSeconds = document.getElementById("player0").currentTime;
+        document.getElementById("missionTimeDisplay").innerHTML = secondsToTimeStr(missionStartTimeSeconds + missionSeconds);
+        document.getElementById("missionTimeDisplayGMT").innerHTML = secondsToTimeStr(missionStartTimeSeconds + 18000 + missionSeconds);
+        // document.getElementById("myRange").value = (missionSeconds * 100) / missionDurationSeconds;
+
+        // console.log(document.getElementById("myRange").value);
+
+        var closestChartIndex = findChartIndexByMissionTime(missionStartTimeSeconds + missionSeconds);
+        var chartStartEnd = findChartStartEnd(closestChartIndex);
+
+        setChartRange(chartStartEnd);
+        // setChartHover(closestChartIndex);
+
+        Plotly.Fx.hover('allChart', [
+            {curveNumber: 0, pointNumber: closestChartIndex},
+            {curveNumber: 1, pointNumber: closestChartIndex}
+        ]);
+
+        drawCursor(missionStartTimeSeconds + missionSeconds)
+
+    },1000);
+}
+
+function play() {
+    document.getElementById("player0").play();
+    startInterval();
+}
+function pause() {
+    clearInterval(gTimer);
+    document.getElementById("player0").pause();
+}
+
+function findChartIndexByMissionTime(seconds) {
+    for (var i=0; i < gSuitTelemetryData[gFieldNames['Time']].length; i++) {
+        if (timeStrToSeconds(gSuitTelemetryData[gFieldNames['Time']][i]) > seconds) {
+            var closestIndex = i - 1;
+            break;
+        }
+    }
+    return closestIndex < 0 ? 0 : closestIndex;
+}
+
+function createCharts() {
+
+    $('#chart1title').html('EV1 Pressure (psig)');
+    var chart1Trace1 = {
+        x:gSuitTelemetryData[gFieldNames['Time']],
+        y:gSuitTelemetryData[gFieldNames['EV1_Suit_Pressure_(psig)']],
+        type: 'line',
+        line: {
+            width: 1,
+            color: yellow
+        },
+        name: 'EV1 Suit Primary'
+    };
+
+    var chart1Trace2 = {
+        x:gSuitTelemetryData[gFieldNames['Time']],
+        y:gSuitTelemetryData[gFieldNames['EV1_Suit_Pressure_Backup_(psig)']],
+        type: 'line',
+        line: {
+            width: 1,
+            color: green
+        },
+        name: 'EV1 Suit Backup'
+    };
+
+    var chart1Trace3 = {
+        x:gSuitTelemetryData[gFieldNames['Time']],
+        y:gSuitTelemetryData[gFieldNames['EV1_Primary_Ambient_Pressure_(psig)']],
+        type: 'line',
+        line: {
+            width: 1,
+            color: purple
+        },
+        name: 'EV1 Amb Primary'
+    };
+
+    var chart1Trace4 = {
+        x:gSuitTelemetryData[gFieldNames['Time']],
+        y:gSuitTelemetryData[gFieldNames['EV1_Ambient_Pressure_Backup_(psig)']],
+        type: 'line',
+        line: {
+            width: 1,
+            color: blue
+        },
+        name: 'EV1 Amb Backup'
+    };
+
+    Plotly.newPlot('Chart1', [chart1Trace1, chart1Trace2, chart1Trace3, chart1Trace4], gChartLayout, {displayModeBar: false});
+
+
+    $('#chart2title').html('EV1 Flow');
+    var chart2Trace1 = {
+        x:gSuitTelemetryData[gFieldNames['Time']],
+        y:gSuitTelemetryData[gFieldNames['EV1_Supply_Flow_(ACFM)']],
+        type: 'line',
+        line: {
+            width: 1,
+            color: green
+        },
+        name: 'EV1 SupplyACFM'
+    };
+
+    var chart2Trace2 = {
+        x:gSuitTelemetryData[gFieldNames['Time']],
+        y:gSuitTelemetryData[gFieldNames['EV1_Return_Flow_(ACFM)']],
+        type: 'line',
+        line: {
+            width: 1,
+            color: purple
+        },
+        name: 'EV1 ReturnACFM'
+    };
+
+    var chart2Trace3 = {
+        x:gSuitTelemetryData[gFieldNames['Time']],
+        y:gSuitTelemetryData[gFieldNames['EV1_Supply_Flow_(SCFM)']],
+        type: 'line',
+        line: {
+            width: 1,
+            color: yellow
+        },
+        name: 'EV1 SupplySCFM'
+    };
+
+    var chart2Trace4 = {
+        x:gSuitTelemetryData[gFieldNames['Time']],
+        y:gSuitTelemetryData[gFieldNames['EV1_Return_Flow_(SCFM)']],
+        type: 'line',
+        line: {
+            width: 1,
+            color: blue
+        },
+        name: 'EV1 ReturnSCFM'
+    };
+
+
+    Plotly.newPlot('Chart2', [chart2Trace1, chart2Trace2, chart2Trace3, chart2Trace4], gChartLayout, {displayModeBar: false});
+
+
+    $('#chart3title').html('EV1 Delta (psi)');
+    var chart3Trace1 = {
+        x:gSuitTelemetryData[gFieldNames['Time']],
+        y:gSuitTelemetryData[gFieldNames['EV1_Delta_Pressure_(psi)']],
+        type: 'line',
+        line: {
+            width: 1,
+            color: purple
+        },
+        name: 'EV1 Primary'
+    };
+
+    var chart3Trace2 = {
+        x:gSuitTelemetryData[gFieldNames['Time']],
+        y:gSuitTelemetryData[gFieldNames['EV1_Delta_Pressure2_(psi)']],
+        type: 'line',
+        line: {
+            width: 1,
+            color: blue
+        },
+        name: 'EV1 Backup'
+    };
+
+    Plotly.newPlot('Chart3', [chart3Trace1, chart3Trace2], gChartLayout, {displayModeBar: false});
+
+
+    $('#chart4title').html('EV2 Press(x)/Depth(y) (2 mins)');
+    var scatterLayoutProperties = JSON.parse(JSON.stringify(gChartLayout));
+    scatterLayoutProperties.xaxis.range = [0, 30];
+    scatterLayoutProperties.yaxis.range = [0, 40];
+    scatterLayoutProperties.xaxis.autorange = false;
+    scatterLayoutProperties.yaxis.autorange = false;
+
+    var chart4Trace1 = {
+        x:gSuitTelemetryData[gFieldNames['EV2_Suit_Pressure_(psig)']],
+        y:gSuitTelemetryData[gFieldNames['EV2_Depth_(feet)']],
+        mode: 'markers',
+        type: 'scatter',
+        marker: {
+            size: 2,
+            color: yellow
+        },
+        name: 'EV2'
+    };
+
+
+    Plotly.newPlot('Chart4', [chart4Trace1], scatterLayoutProperties, {displayModeBar: false});
+
+
+    var chartAllTrace1 = {
+        x:gSuitTelemetryData[gFieldNames['Time']],
+        y:gSuitTelemetryData[gFieldNames['EV2_Depth_(feet)']],
+        type: 'line',
+        line: {
+            width: 1,
+            color: yellow
+        },
+        name: 'EV2 Depth'
+    };
+
+    var chartAllTrace2 = {
+        x:gSuitTelemetryData[gFieldNames['Time']],
+        y:gSuitTelemetryData[gFieldNames['EV2_Subject_Depth_(feet)_Calculated_from_suit_pressure)']],
+        type: 'line',
+        line: {
+            width: 1,
+            color: orange
+        },
+        name: 'EV2 Calc Depth'
+    };
+
+    var chartAllTrace3 = {
+        x:gSuitTelemetryData[gFieldNames['Time']],
+        y:gSuitTelemetryData[gFieldNames['EV1_Depth_(feet)']],
+        type: 'line',
+        line: {
+            width: 1,
+            color: green
+        },
+        name: 'EV1 Depth'
+    };
+
+    var depthLayout = JSON.parse(JSON.stringify(gChartLayout));
+    depthLayout['yaxis']['autorange'] = 'reversed';
+    Plotly.newPlot('allChart', [chartAllTrace1, chartAllTrace2, chartAllTrace3], depthLayout, {displayModeBar: false});
+
+
+    var classname = document.getElementsByClassName("plotlychart");
+    for (i = 0; i < classname.length; i++) {
+        classname[i].on('plotly_click', function(data){
+            document.getElementById("player0").currentTime = timeStrToSeconds(data.points[0].x) - missionStartTimeSeconds;
+            if (!document.getElementById("player0").paused) {
+                startInterval();
+            }
+        });
+    }
+}
+
+function findChartStartEnd(closestIndex) {
+    //this code puts the current data point at the far left of the little charts
+    var chartStart = closestIndex;
+
+    if (closestIndex + chartWidth >= gSuitTelemetryData[gFieldNames['Time']].length) {
+        var chartEnd = gSuitTelemetryData[gFieldNames['Time']].length;
+    } else {
+        chartEnd = closestIndex + chartWidth;
+    }
+    return [chartStart, chartEnd];
+}
+
+function setChartRange(chartStartEnd) {
+    var linepoint = chartStartEnd[0] + ((chartStartEnd[1] - chartStartEnd[0]) / 2);
+
+    var chartRelayoutProperties = JSON.parse(JSON.stringify(gChartLayout));
+    chartRelayoutProperties.xaxis.range = [chartStartEnd[0], chartStartEnd[1]];
+    chartRelayoutProperties.xaxis.autorange = false;
+
+    var scatterLayoutProperties = JSON.parse(JSON.stringify(gChartLayout));
+    scatterLayoutProperties.xaxis.range = [0, 30];
+    scatterLayoutProperties.yaxis.range = [0, 40];
+    scatterLayoutProperties.xaxis.autorange = false;
+    scatterLayoutProperties.yaxis.autorange = false;
+
+    Plotly.relayout('Chart1', chartRelayoutProperties);
+    Plotly.relayout('Chart2', chartRelayoutProperties);
+    Plotly.relayout('Chart3', chartRelayoutProperties);
+    Plotly.relayout('Chart5', chartRelayoutProperties);
+    Plotly.relayout('Chart6', chartRelayoutProperties);
+    Plotly.relayout('Chart7', chartRelayoutProperties);
+    Plotly.relayout('Chart8', chartRelayoutProperties);
+
+    var chart4Trace1 = {
+        x:gSuitTelemetryData[gFieldNames['EV2_Suit_Pressure_(psig)']].slice(chartStartEnd[0], chartStartEnd[1]),
+        y:gSuitTelemetryData[gFieldNames['EV2_Depth_(feet)']].slice(chartStartEnd[0], chartStartEnd[1]),
+        mode: 'markers',
+        type: 'scatter',
+        marker: {
+            size: 2,
+            color: yellow
+        },
+        name: 'EV2'
+    };
+    Plotly.newPlot('Chart4', [chart4Trace1], scatterLayoutProperties, {displayModeBar: false});
+}
+
+function setChartHover(activeIndex) {
+    Plotly.Fx.hover('depthChart', [
+        {curveNumber: 0, pointNumber: activeIndex},
+        {curveNumber: 1, pointNumber: activeIndex}
+    ]);
+    Plotly.Fx.hover('airflowSCFMChart', [
+        {curveNumber: 0, pointNumber: activeIndex},
+        {curveNumber: 1, pointNumber: activeIndex},
+        {curveNumber: 2, pointNumber: activeIndex},
+        {curveNumber: 3, pointNumber: activeIndex}
+    ]);
+    Plotly.Fx.hover('airflowACFMChart', [
+        {curveNumber: 0, pointNumber: activeIndex},
+        {curveNumber: 1, pointNumber: activeIndex},
+        {curveNumber: 2, pointNumber: activeIndex},
+        {curveNumber: 3, pointNumber: activeIndex}
+
+    ]);
+    Plotly.Fx.hover('coolingWaterChart', [
+        {curveNumber: 0, pointNumber: activeIndex},
+        {curveNumber: 1, pointNumber: activeIndex}
+    ]);
+    Plotly.Fx.hover('pressureChart', [
+        {curveNumber: 0, pointNumber: activeIndex},
+        {curveNumber: 1, pointNumber: activeIndex},
+        {curveNumber: 2, pointNumber: activeIndex},
+        {curveNumber: 3, pointNumber: activeIndex},
+        {curveNumber: 4, pointNumber: activeIndex},
+        {curveNumber: 5, pointNumber: activeIndex}
+    ]);
+}
+
+
+function secondsToTimeStr(totalSeconds) {
+    var hours = Math.abs(parseInt(totalSeconds / 3600));
+    var minutes = Math.abs(parseInt(totalSeconds / 60)) % 60 % 60;
+    var seconds = Math.abs(parseInt(totalSeconds)) % 60;
+    seconds = Math.floor(seconds);
+    var timeStr = padZeros(hours,2) + ":" + padZeros(minutes,2) + ":" + padZeros(seconds,2);
+    if (totalSeconds < 0) {
+        timeStr = "-" + timeStr.substr(1); //change timeStr to negative, replacing leading zero in hours with "-"
+    }
+    return timeStr;
+}
+
+function timeStrToSeconds(timeStr) {
+    var sign = timeStr.substr(0,1);
+    var hours = parseInt(timeStr.substr(0,2));
+    var minutes = parseInt(timeStr.substr(3,2));
+    var seconds = parseInt(timeStr.substr(6,2));
+    var signToggle = (sign == "-") ? -1 : 1;
+    var totalSeconds = Math.round(signToggle * ((Math.abs(hours) * 60 * 60) + (minutes * 60) + seconds));
+
+    return totalSeconds;
+}
+
+function padZeros(num, size) {
+    var s = num + "";
+    while (s.length < size) s = "0" + s;
+    return s;
+}
+
