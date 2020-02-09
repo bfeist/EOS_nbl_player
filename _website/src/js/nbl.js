@@ -1,7 +1,3 @@
-
-var missionStartTimeSeconds = 30233.5;
-var missionDurationSeconds = 4988;
-
 var blue = '#3498DB';
 var purple = '#9B59B6';
 var green = '#1ABB9C';
@@ -82,37 +78,102 @@ var gRunsData = []; //loaded from Ajax. Array of run names that are also folder 
 var gDBFFieldsKeyData = {}; //loaded from Ajax csv
 
 var gRunMetadata = {};
+var gMissionStartTimeSeconds = 0;
+var gMissionDurationSeconds = 0;
+var gRunName = '';
+var gStreamName = '';
+var gSegmentFilename = '';
+var gSegmentStartSeconds = 0;
+
+var gMissionSeconds = 0;
 
 $( document ).ready(function() {
     console.log("ready!");
 
     $.when(ajaxGetRunsJSON(), ajaxGetDBFFieldsKey()).done(function () {
 
-        initializeRun(document.getElementById("runSelect").value);
-
-        initNavigator();
-        createCharts();
-        setEventHandlers();
-
+        initializeRun();
         // startInterval();
     });
 });
 
-function initializeRun(runName) {
-    $.when(ajaxGetRunJSON(runName)).done(function () {
-        loadVideo(runName, gRunMetadata['videos'][0]['filename_root'])
+function initializeRun() {
+    $.when(ajaxGetRunJSON()).done(function () {
+
+        //set run start time and length
+        var runStartDatetimeString = gRunMetadata['run_metadata']['start_datetime'];
+        gMissionStartTimeSeconds = timeStrToSeconds(runStartDatetimeString.split('T')[1]);
+        gMissionDurationSeconds = parseInt(gRunMetadata['run_metadata']['duration_seconds']);
+        gRunName = document.getElementById("runSelect").value;
+        //display run date
+        document.getElementById("missionDateDisplay").innerHTML = runStartDatetimeString.split('T')[0];
+
+        //populate run video streams dropdown
+        var select = document.getElementById("videoStreamnameSelect");
+        for(var i = 0; i < gRunMetadata['videos'].length; i++) {
+            var opt = gRunMetadata['videos'][i]['stream_name'];
+            var el = document.createElement("option");
+            el.textContent = opt;
+            el.value = opt;
+            select.appendChild(el);
+        }
+        //select first stream by default
+        document.getElementById("videoStreamnameSelect").value = gRunMetadata['videos'][0]['stream_name'];
+        gStreamName = gRunMetadata['videos'][0]['stream_name'];
+
+        loadVideo();
+
+        initNavigator();
+        createCharts();
+        setEventHandlers();
     });
 }
 
-function loadVideo(runName, filenameRoot) {
-    var video = document.getElementById('player0');
-    var source = document.createElement('source');
-    source.setAttribute('src', gRunDataURL + runName + '/video_feeds/' + filenameRoot + '-000.mp4');
+function loadVideo() {
 
-    video.appendChild(source);
+    var video = document.getElementById('player0');
+    var checkSourceExists = document.getElementById("player0source");
+    if(!checkSourceExists) {
+        var source = document.createElement('source');
+        source.setAttribute("id", "player0source");
+        video.appendChild(source);
+    } else {
+        source = document.getElementById("player0source");
+    }
+
+    //get video metadata
+    var videoMetadata = getVideoMetadataByStreamName(gStreamName);
+
+    //figure out which video segment to play
+    gSegmentFilename = '';
+    for (var i = 0; i < videoMetadata['video_segments'].length; i++) {
+        if (videoMetadata['video_segments'][i]['start_time_seconds'] > gMissionSeconds) {
+            gSegmentFilename = videoMetadata['video_segments'][i - 1]['segment_filename'];
+            gSegmentStartSeconds = parseInt(videoMetadata['video_segments'][i - 1]['start_time_seconds']);
+            break;
+        }
+    }
+    if (gSegmentFilename === '') { //if it wasn't found with the above loop, it must be the last element
+        gSegmentFilename = videoMetadata['video_segments'][videoMetadata['video_segments'].length - 1]['segment_filename'];
+        gSegmentStartSeconds = parseInt(videoMetadata['video_segments'][videoMetadata['video_segments'].length - 1]['start_time_seconds']);
+    }
+
+    source.setAttribute('src', gRunDataURL + gRunName + '/video_feeds/' + gSegmentFilename);
+
     video.load();
     video.muted = true;
+
+    //figure out how many seconds into video to seek to get to gMissionSeconds
+    video.currentTime = gMissionSeconds - gSegmentStartSeconds;
     video.play();
+}
+
+function getVideoMetadataByStreamName(streamName) {
+    for (var i = 0; i < gRunMetadata['videos'].length; i++) {
+        if (gRunMetadata['videos'][i]['stream_name'] === streamName) {
+            return gRunMetadata['videos'][i];
+        }
+    }
 }
 
 function setEventHandlers() {
@@ -120,30 +181,47 @@ function setEventHandlers() {
 
     document.getElementById("player0").addEventListener("play", function() { startInterval();}, true);
     document.getElementById("player0").addEventListener("pause", function() { clearInterval(gTimer);}, true);
+    document.getElementById('player0').addEventListener('ended',function() { gMissionSeconds++; loadVideo();}, true);
+
+    document.getElementById("runSelect").addEventListener("change", function() {
+        gRunName = this.value;
+    });
+
+    document.getElementById("videoStreamnameSelect").addEventListener("change", function() {
+        gStreamName = this.value;
+        loadVideo();
+    });
 }
 
 function startInterval() {
     clearInterval(gTimer);
     gTimer = setInterval(function(){
-        var missionSeconds = document.getElementById("player0").currentTime;
-        document.getElementById("missionTimeDisplay").innerHTML = secondsToTimeStr(missionStartTimeSeconds + missionSeconds);
-        document.getElementById("missionTimeDisplayGMT").innerHTML = secondsToTimeStr(missionStartTimeSeconds + 18000 + missionSeconds);
-        // document.getElementById("myRange").value = (missionSeconds * 100) / missionDurationSeconds;
+
+        //calculate how many seconds after start of run this video stream starts
+        var runStartTimeSeconds = timeStrToSeconds(gRunMetadata['run_metadata']['start_datetime'].substring(11, 19));
+        var videoStreamStartTimeSeconds = timeStrToSeconds(getVideoMetadataByStreamName(document.getElementById("videoStreamnameSelect").value)['stream_start_datetime'].substring(11, 19));
+        var videoStartOffsetSeconds = runStartTimeSeconds - videoStreamStartTimeSeconds;
+
+        //calc mission time from video
+        gMissionSeconds = videoStartOffsetSeconds + gSegmentStartSeconds + document.getElementById("player0").currentTime;
+        document.getElementById("missionTimeDisplay").innerHTML = secondsToTimeStr(gMissionStartTimeSeconds + gMissionSeconds);
+        document.getElementById("missionTimeDisplayGMT").innerHTML = secondsToTimeStr(gMissionStartTimeSeconds + 18000 + gMissionSeconds);
+        // document.getElementById("myRange").value = (missionSeconds * 100) / gMissionDurationSeconds;
 
         // console.log(document.getElementById("myRange").value);
 
-        var closestChartIndex = findChartIndexByMissionTime(missionStartTimeSeconds + missionSeconds);
-        var chartStartEnd = findChartStartEnd(closestChartIndex);
+        // var closestChartIndex = findChartIndexByMissionTime(gMissionStartTimeSeconds + missionSeconds);
+        // var chartStartEnd = findChartStartEnd(closestChartIndex);
 
-        setChartRange(chartStartEnd);
+        // setChartRange(chartStartEnd);
         // setChartHover(closestChartIndex);
 
-        Plotly.Fx.hover('allChart', [
-            {curveNumber: 0, pointNumber: closestChartIndex},
-            {curveNumber: 1, pointNumber: closestChartIndex}
-        ]);
+        // Plotly.Fx.hover('allChart', [
+        //     {curveNumber: 0, pointNumber: closestChartIndex},
+        //     {curveNumber: 1, pointNumber: closestChartIndex}
+        // ]);
 
-        drawCursor(missionStartTimeSeconds + missionSeconds)
+        drawCursor(gMissionStartTimeSeconds + gMissionSeconds)
 
     },1000);
 }
@@ -210,7 +288,7 @@ function createCharts() {
     var classname = document.getElementsByClassName("plotlychart");
     for (i = 0; i < classname.length; i++) {
         classname[i].on('plotly_click', function(data){
-            document.getElementById("player0").currentTime = timeStrToSeconds(data.points[0].x) - missionStartTimeSeconds;
+            document.getElementById("player0").currentTime = timeStrToSeconds(data.points[0].x) - gMissionStartTimeSeconds;
             if (!document.getElementById("player0").paused) {
                 startInterval();
             }

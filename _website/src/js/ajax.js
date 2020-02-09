@@ -15,6 +15,7 @@ function ajaxGetRunsJSON() {
             select.appendChild(el);
         }
         document.getElementById("runSelect").value = gRunsData[0];
+        gRunName = gRunsData[0];
         console.log("runs dropdown loaded");
     });
 }
@@ -49,11 +50,11 @@ function processDBFFieldsKey(allText) {
     console.log("DBF fields key data loaded");
 }
 
-function ajaxGetRunJSON(runName) {
-    return $.getJSON(gRunDataURL + runName + '/_processed/run_metadata.json', function(data) {
+function ajaxGetRunJSON() {
+    return $.getJSON(gRunDataURL + gRunName + '/_processed/run_metadata.json', function(data) {
         gRunMetadata = data;
 
-        console.log("run metadata loaded for " + runName);
+        console.log("run metadata loaded for " + gRunName);
     });
 }
 

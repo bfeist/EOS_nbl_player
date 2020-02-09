@@ -26,8 +26,8 @@ function initNavigator() {
     gNavigatorHeight = paper.view.size.height - 20;
     gFontScaleFactor = Math.floor(gNavigatorHeight * .020) - 1;
 
-    gNavigatorPixelsPerSecond = gNavigatorWidth / missionDurationSeconds ;
-    gNavigatorSecondsPerPixel = missionDurationSeconds / gNavigatorWidth;
+    gNavigatorPixelsPerSecond = gNavigatorWidth / gMissionDurationSeconds ;
+    gNavigatorSecondsPerPixel = gMissionDurationSeconds / gNavigatorWidth;
 
     gNavGroup = new paper.Group;
     gCursorGroup = new paper.Group;
@@ -41,16 +41,20 @@ function initNavigator() {
 
         mouseXSeconds = (event.point.x - 1) * gNavigatorSecondsPerPixel + 1;
 
-        drawNavCursor(mouseXSeconds + missionStartTimeSeconds);
+        drawNavCursor(mouseXSeconds + gMissionStartTimeSeconds);
     };
 
     paper.view.onMouseUp = function (event) {
-        var mouseXSeconds = (event.point.x - 1) * gNavigatorSecondsPerPixel + 1;
-        document.getElementById("player0").currentTime = mouseXSeconds;
+        if (event.point.y < 80) {
+            var mouseXSeconds = (event.point.x - 1) * gNavigatorSecondsPerPixel + 1;
+            // document.getElementById("player0").currentTime = mouseXSeconds;
+            gMissionSeconds = mouseXSeconds;
+            loadVideo();
 
-        var closestChartIndex = findChartIndexByMissionTime(missionStartTimeSeconds + mouseXSeconds);
-        var chartStartEnd = findChartStartEnd(closestChartIndex);
-        setChartRange(chartStartEnd);
+            var closestChartIndex = findChartIndexByMissionTime(gMissionStartTimeSeconds + mouseXSeconds);
+            var chartStartEnd = findChartStartEnd(closestChartIndex);
+            setChartRange(chartStartEnd);
+        }
     };
 
     paper.view.onMouseLeave = function(event) {
@@ -70,9 +74,10 @@ function drawNavigator() {
     gNavGroup.addChild(tierRectPath);
 
     //display time ticks
-    for (var i = 0; i < missionDurationSeconds; i++) {
-
-        if ((i - 7) % (10 * 60) === 0) {
+    for (var i = 0; i < gMissionDurationSeconds; i++) {
+        // sillily complex thing to show time ticks on the hour
+        if (parseInt(secondsToTimeStr(gMissionStartTimeSeconds + i).substring(3,5)) % (10 * 60) === 0 && secondsToTimeStr(gMissionStartTimeSeconds + i).substring(6,8) === '00') {
+        // if ((i - 7) % (10 * 60) === 0) {
             var itemLocX = i * gNavigatorPixelsPerSecond;
             var topPoint = new paper.Point(itemLocX, 1);
             var bottomPoint = new paper.Point(itemLocX, 10);
@@ -89,7 +94,7 @@ function drawNavigator() {
             var textTop = 1 + gNavigatorHeight - 5;
             stageText.point = new paper.Point(itemLocX - 2 , textTop);
             stageText.rotate(-90);
-            var tickTimeSeconds = i + missionStartTimeSeconds;
+            var tickTimeSeconds = i + gMissionStartTimeSeconds;
             stageText.content = secondsToTimeStr(tickTimeSeconds);
 
             gNavGroup.addChild(stageText);
@@ -100,7 +105,7 @@ function drawNavigator() {
     //display TOC ticks and text
     //display TOC ticks at varying heights
     for (i = 0; i < gTOCData.length; i++) {
-        var itemSecondsFromLeft = timeStrToSeconds(gTOCData[i][0]) - missionStartTimeSeconds;
+        var itemSecondsFromLeft = timeStrToSeconds(gTOCData[i][0]) - gMissionStartTimeSeconds;
 
         itemLocX = itemSecondsFromLeft * gNavigatorPixelsPerSecond;
 
@@ -127,7 +132,7 @@ function drawNavigator() {
 function drawCursor(seconds) {
     gCursorGroup.removeChildren();
 
-    var cursorLocX = 1 + ((seconds - missionStartTimeSeconds)  * gNavigatorPixelsPerSecond);
+    var cursorLocX = 1 + ((seconds - gMissionStartTimeSeconds)  * gNavigatorPixelsPerSecond);
     var topPoint = new paper.Point(cursorLocX, 1);
     var bottomPoint = new paper.Point(cursorLocX, gNavigatorHeight);
     var aLine = new paper.Path.Line(topPoint, bottomPoint);
@@ -157,7 +162,7 @@ function drawCursor(seconds) {
 function drawNavCursor(seconds) {
     gNavCursorGroup.removeChildren();
 
-    var cursorLocX = 1 + ((seconds - missionStartTimeSeconds)  * gNavigatorPixelsPerSecond);
+    var cursorLocX = 1 + ((seconds - gMissionStartTimeSeconds)  * gNavigatorPixelsPerSecond);
     var topPoint = new paper.Point(cursorLocX, 1);
     var bottomPoint = new paper.Point(cursorLocX, gNavigatorHeight);
     var aLine = new paper.Path.Line(topPoint, bottomPoint);
