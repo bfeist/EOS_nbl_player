@@ -31,13 +31,17 @@
                 <div class="page-title row">
                     <div class="col-md-4 col-sm-4 col-xs-12">
                         <img src="images/NBL-logo.png" width="30" style="float: left; padding-right:5px;">
-                        <h3>NBL Visualizer - Overpress Run<small> </small></h3>
+                        <h3>NBL Visualizer V3 - Automated Import<small> </small></h3>
                     </div>
                     <div class="col-md-6 col-sm-6 col-xs-12 text-center">
-                        <h4>Mission Time: 2017/07/29  <span id="missionTimeDisplay">08:24:24</span> CDT | GMT: 210/<span id="missionTimeDisplayGMT">08:24:24</span></h4>
+                        Run Name:
+                        <select id="runSelect">
+                            <option value="">Run Name</option>
+                        </select>
+                        <h4>Mission Time: <span id="missionDateDisplay">YYYY/MM/DD</span>  <span id="missionTimeDisplay">HH:MM:SS</span> CDT | GMT: <span id="missionTimeDisplayGMT">HH:MM:SS</span></h4>
                     </div>
                     <div class="col-md-2 col-sm-2 col-xs-12 text-right">
-                        v0.5<BR>
+                        v0.1<BR>
                         Ben Feist
                     </div>
                 </div>
@@ -46,16 +50,6 @@
                 <div class="row">
                     <div class="col-md-12">
                         <div class="x_panel">
-                            <!--<div class="slidecontainer row">-->
-                                <!--<div class="col-md-2 col-sm-2 col-xs-2">-->
-                                    <!--<button class="btn" onclick="play();">Play</button>-->
-                                    <!--<button class="btn" onclick="pause();">Pause</button>-->
-                                <!--</div>-->
-                                <!--<div class="col-md-10 col-sm-10 col-xs-10">-->
-                                    <!--&lt;!&ndash;<span id="rangeTimeDisplay">00:00:00</span>&ndash;&gt;-->
-                                    <!--<input type="range" min="1" max="100" value="0" class="slider" id="myRange" step="0.001"/>-->
-                                <!--</div>-->
-                            <!--</div>-->
                             <div class="row">
                                 <div class="col-md-12 col-sm-12 col-xs-12">
                                     <canvas id="navCanvas" resize="true"></canvas>
@@ -64,44 +58,19 @@
                             <div class="x_content row">
                                 <div class="col-md-4 col-sm-4 col-xs-12">
                                     <!--<div id="chart" style="height:350px;"></div>-->
-                                    <div class="embed-responsive embed-responsive-nbl3vid" id="videocontainer">
+                                    <select id="videoStreamnameSelect">
+                                        <option value="">Video Stream Name</option>
+                                    </select>
+                                    <div class="embed-responsive embed-responsive-16by9" id="videocontainer">
                                         <video class="embed-responsive-item" id="player0" controls></video>
                                     </div>
                                 </div>
                                 <div class="col-md-8 col-sm-8 col-xs-12">
-                                        <div class="row">
-                                            <div class="col-md-3 col-sm-3 col-xs-12">
-                                                <div class="x_title">
-                                                    <h2 id="chart1title"></h2>
-                                                    <div class="clearfix"></div>
-                                                </div>
-                                                <div class="plotlychart" id="Chart1"></div>
-                                            </div>
-                                            <div class="col-md-3 col-sm-3 col-xs-12">
-                                                <div class="x_title">
-                                                    <h2 id="chart2title"></h2>
-                                                    <div class="clearfix"></div>
-                                                </div>
-                                                <div class="plotlychart" id="Chart2"></div>
-                                            </div>
-                                            <div class="col-md-3 col-sm-3 col-xs-12">
-                                                <div class="x_title">
-                                                    <h2 id="chart3title"></h2>
-                                                    <div class="clearfix"></div>
-                                                </div>
-                                                <div class="plotlychart" id="Chart3"></div>
-                                            </div>
-                                            <div class="col-md-3 col-sm-3 col-xs-12">
-                                                <div class="x_title">
-                                                    <h2 id="chart4title"></h2>
-                                                    <div class="clearfix"></div>
-                                                </div>
-                                                <div class="plotlychart" id="Chart4"></div>
-                                            </div>
-                                        </div>
 
                                 </div>
                             </div>
+
+
                             <div class="row">
                                 <div class="col-xs-12">
                                     <div class="x_title">

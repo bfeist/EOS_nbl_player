@@ -86,25 +86,28 @@ var gSelectedRun = ''; //current run selected for playback
 $( document ).ready(function() {
     console.log("ready!");
 
-    var video = document.getElementById('player0');
-    var source = document.createElement('source');
-    // source.setAttribute('src', '/video/JSC_NBL_2_rendered.mp4');
-    source.setAttribute('src', 'http://nbl.apolloinrealtime.org/JSC_NBL_2_rendered.mp4x');
-
-    video.appendChild(source);
-    video.load();
-    // video.muted = true;
-
     $.when(ajaxGetRunsJSON(), ajaxGetDBFFieldsKey()).done(function () {
-        gSelectedRun = gRunsData[0]; //choose first run in list as default to load
+        gSelectedRun = document.getElementById("runSelect").value; //selected run in dropdown
 
         initNavigator();
         createCharts();
         setEventHandlers();
-        video.play();
-        startInterval();
+
+        // startInterval();
     });
 });
+
+function loadVideo(segmentFilename) {
+    var video = document.getElementById('player0');
+    var source = document.createElement('source');
+    // source.setAttribute('src', '/video/JSC_NBL_2_rendered.mp4');
+    source.setAttribute('src', 'http://nbl.apolloinrealtime.org/JSC_NBL_2_rendered.mp4');
+
+    video.appendChild(source);
+    video.load();
+    video.muted = true;
+    video.play();
+}
 
 function setEventHandlers() {
     var slider = document.getElementById("myRange");
@@ -159,152 +162,6 @@ function findChartIndexByMissionTime(seconds) {
 }
 
 function createCharts() {
-
-    $('#chart1title').html('EV1 Pressure (psig)');
-    var chart1Trace1 = {
-        x:gSuitTelemetryData[gFieldNames['Time']],
-        y:gSuitTelemetryData[gFieldNames['EV1_Suit_Pressure_(psig)']],
-        type: 'line',
-        line: {
-            width: 1,
-            color: yellow
-        },
-        name: 'EV1 Suit Primary'
-    };
-
-    var chart1Trace2 = {
-        x:gSuitTelemetryData[gFieldNames['Time']],
-        y:gSuitTelemetryData[gFieldNames['EV1_Suit_Pressure_Backup_(psig)']],
-        type: 'line',
-        line: {
-            width: 1,
-            color: green
-        },
-        name: 'EV1 Suit Backup'
-    };
-
-    var chart1Trace3 = {
-        x:gSuitTelemetryData[gFieldNames['Time']],
-        y:gSuitTelemetryData[gFieldNames['EV1_Primary_Ambient_Pressure_(psig)']],
-        type: 'line',
-        line: {
-            width: 1,
-            color: purple
-        },
-        name: 'EV1 Amb Primary'
-    };
-
-    var chart1Trace4 = {
-        x:gSuitTelemetryData[gFieldNames['Time']],
-        y:gSuitTelemetryData[gFieldNames['EV1_Ambient_Pressure_Backup_(psig)']],
-        type: 'line',
-        line: {
-            width: 1,
-            color: blue
-        },
-        name: 'EV1 Amb Backup'
-    };
-
-    Plotly.newPlot('Chart1', [chart1Trace1, chart1Trace2, chart1Trace3, chart1Trace4], gChartLayout, {displayModeBar: false});
-
-
-    $('#chart2title').html('EV1 Flow');
-    var chart2Trace1 = {
-        x:gSuitTelemetryData[gFieldNames['Time']],
-        y:gSuitTelemetryData[gFieldNames['EV1_Supply_Flow_(ACFM)']],
-        type: 'line',
-        line: {
-            width: 1,
-            color: green
-        },
-        name: 'EV1 SupplyACFM'
-    };
-
-    var chart2Trace2 = {
-        x:gSuitTelemetryData[gFieldNames['Time']],
-        y:gSuitTelemetryData[gFieldNames['EV1_Return_Flow_(ACFM)']],
-        type: 'line',
-        line: {
-            width: 1,
-            color: purple
-        },
-        name: 'EV1 ReturnACFM'
-    };
-
-    var chart2Trace3 = {
-        x:gSuitTelemetryData[gFieldNames['Time']],
-        y:gSuitTelemetryData[gFieldNames['EV1_Supply_Flow_(SCFM)']],
-        type: 'line',
-        line: {
-            width: 1,
-            color: yellow
-        },
-        name: 'EV1 SupplySCFM'
-    };
-
-    var chart2Trace4 = {
-        x:gSuitTelemetryData[gFieldNames['Time']],
-        y:gSuitTelemetryData[gFieldNames['EV1_Return_Flow_(SCFM)']],
-        type: 'line',
-        line: {
-            width: 1,
-            color: blue
-        },
-        name: 'EV1 ReturnSCFM'
-    };
-
-
-    Plotly.newPlot('Chart2', [chart2Trace1, chart2Trace2, chart2Trace3, chart2Trace4], gChartLayout, {displayModeBar: false});
-
-
-    $('#chart3title').html('EV1 Delta (psi)');
-    var chart3Trace1 = {
-        x:gSuitTelemetryData[gFieldNames['Time']],
-        y:gSuitTelemetryData[gFieldNames['EV1_Delta_Pressure_(psi)']],
-        type: 'line',
-        line: {
-            width: 1,
-            color: purple
-        },
-        name: 'EV1 Primary'
-    };
-
-    var chart3Trace2 = {
-        x:gSuitTelemetryData[gFieldNames['Time']],
-        y:gSuitTelemetryData[gFieldNames['EV1_Delta_Pressure2_(psi)']],
-        type: 'line',
-        line: {
-            width: 1,
-            color: blue
-        },
-        name: 'EV1 Backup'
-    };
-
-    Plotly.newPlot('Chart3', [chart3Trace1, chart3Trace2], gChartLayout, {displayModeBar: false});
-
-
-    $('#chart4title').html('EV2 Press(x)/Depth(y) (2 mins)');
-    var scatterLayoutProperties = JSON.parse(JSON.stringify(gChartLayout));
-    scatterLayoutProperties.xaxis.range = [0, 30];
-    scatterLayoutProperties.yaxis.range = [0, 40];
-    scatterLayoutProperties.xaxis.autorange = false;
-    scatterLayoutProperties.yaxis.autorange = false;
-
-    var chart4Trace1 = {
-        x:gSuitTelemetryData[gFieldNames['EV2_Suit_Pressure_(psig)']],
-        y:gSuitTelemetryData[gFieldNames['EV2_Depth_(feet)']],
-        mode: 'markers',
-        type: 'scatter',
-        marker: {
-            size: 2,
-            color: yellow
-        },
-        name: 'EV2'
-    };
-
-
-    Plotly.newPlot('Chart4', [chart4Trace1], scatterLayoutProperties, {displayModeBar: false});
-
 
     var chartAllTrace1 = {
         x:gSuitTelemetryData[gFieldNames['Time']],

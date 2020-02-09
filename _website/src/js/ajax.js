@@ -5,7 +5,18 @@ function ajaxGetRunsJSON() {
         for (var i = 0; i < data.length; i++) {
             gRunsData.push(data[i]);
         }
-        console.log("runs JSON loaded");
+
+        //Populate dropdown
+        var select = document.getElementById("runSelect");
+        for(i = 0; i < gRunsData.length; i++) {
+            var opt = gRunsData[i];
+            var el = document.createElement("option");
+            el.textContent = opt;
+            el.value = opt;
+            select.appendChild(el);
+        }
+        document.getElementById("runSelect").value = gRunsData[0];
+        console.log("runs dropdown loaded");
     });
 }
 
@@ -37,6 +48,10 @@ function processDBFFieldsKey(allText) {
         gDBFFieldsKeyData[data[0]] = rec;
     }
     console.log("DBF fields key data loaded");
+}
+
+function ajaxGetRunJSON(runName) {
+
 }
 
 
