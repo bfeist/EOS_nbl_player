@@ -1,4 +1,3 @@
-var gRunDataURL = './run_data/';
 
 function ajaxGetRunsJSON() {
     return $.getJSON(gRunDataURL + 'runs.json', function(data) {
@@ -51,7 +50,11 @@ function processDBFFieldsKey(allText) {
 }
 
 function ajaxGetRunJSON(runName) {
+    return $.getJSON(gRunDataURL + runName + '/_processed/run_metadata.json', function(data) {
+        gRunMetadata = data;
 
+        console.log("run metadata loaded for " + runName);
+    });
 }
 
 

@@ -77,17 +77,18 @@ var gTOCData = [];
 var gTimer;
 var gFieldNames = [];
 
+var gRunDataURL = './run_data/';
 var gRunsData = []; //loaded from Ajax. Array of run names that are also folder names for that run's data
 var gDBFFieldsKeyData = {}; //loaded from Ajax csv
 
-var gSelectedRun = ''; //current run selected for playback
-
+var gRunMetadata = {};
 
 $( document ).ready(function() {
     console.log("ready!");
 
     $.when(ajaxGetRunsJSON(), ajaxGetDBFFieldsKey()).done(function () {
-        gSelectedRun = document.getElementById("runSelect").value; //selected run in dropdown
+
+        initializeRun(document.getElementById("runSelect").value);
 
         initNavigator();
         createCharts();
@@ -97,11 +98,16 @@ $( document ).ready(function() {
     });
 });
 
-function loadVideo(segmentFilename) {
+function initializeRun(runName) {
+    $.when(ajaxGetRunJSON(runName)).done(function () {
+        loadVideo(runName, gRunMetadata['videos'][0]['filename_root'])
+    });
+}
+
+function loadVideo(runName, filenameRoot) {
     var video = document.getElementById('player0');
     var source = document.createElement('source');
-    // source.setAttribute('src', '/video/JSC_NBL_2_rendered.mp4');
-    source.setAttribute('src', 'http://nbl.apolloinrealtime.org/JSC_NBL_2_rendered.mp4');
+    source.setAttribute('src', gRunDataURL + runName + '/video_feeds/' + filenameRoot + '-000.mp4');
 
     video.appendChild(source);
     video.load();
