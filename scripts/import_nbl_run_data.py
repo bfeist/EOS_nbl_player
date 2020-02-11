@@ -189,9 +189,7 @@ for runName in runList:
 
     output_TOC_file = open(output_TOC_file_name_and_path, "ab")
 
-    # WRITE HEADER
-    template = template_loader.load_template('template_events_header.html')
-    output_TOC_file.write(template.render({'datarow': 0}, loader=template_loader).encode('utf-8'))
+
 
     # WRITE TOC ITEMS
     prev_depth = 0
@@ -201,19 +199,27 @@ for runName in runList:
     csv.register_dialect('pipes', delimiter='|', doublequote=True, escapechar='\\')
     reader = csv.reader(open(inputFilePath, "rU"), dialect='pipes')
     print('Writing consolidated event html to ' + runProcessedPath + '/system_events.html')
+    curRow = 0
     for row in reader:
         timestamp = row[0][11:19]
         timeline_index_id = timestamp.replace(":", "")
+        if curRow == 0:
+            # WRITE HEADER
+            template = template_loader.load_template('template_events_header.html')
+            output_TOC_file.write(
+                template.render(
+                    {
+                        'initialtimeid': timeline_index_id
+                    }, loader=template_loader
+                ).encode('utf-8'))
+        curRow += 1
         item_text = row[1]
-        item_URL = timeline_index_id
         template = template_loader.load_template('template_events_item.html')
         output_TOC_file.write(
-            template.render(
-            {
+            template.render(            {
                 'timestamp': timestamp,
                 'itemText': item_text,
-                'itemURL': item_URL,
-                "depthComparison": depth_comparison
+                'timeid': timeline_index_id
             }, loader=template_loader
             ).encode('utf-8'))
 

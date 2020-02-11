@@ -6,14 +6,18 @@
     <meta http-equiv="Expires" content="0" />
 	<link rel="copyright" href="http://creativecommons.org/licenses/by-nc-sa/3.0/" />
 
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
 	<script type="text/javascript" src="../../../js/3rdparty/webfontloader.js"></script>
 
 	<title>TOC</title>
 	<script>
-		WebFont.load({
-			google: {
-				families: ['Roboto Mono:200,400,500,700']
-			}
+		$( document ).ready(function() {
+			console.log("events iframe ready!");
+			WebFont.load({
+				google: {
+					families: ['Roboto Mono:200,400,500,700']
+				}
+			});
 		});
 	</script>
 	<meta name="robots" content="index,follow" />

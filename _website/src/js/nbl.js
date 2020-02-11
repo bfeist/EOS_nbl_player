@@ -81,16 +81,17 @@ var gRunMetadata = {};
 var gEventsData = [];
 var gEventsIndex = [];
 var gEventsDataLookup = [];
-
-var gLastEventElement = '';
-var gLastEventTimeId = '';
-
 var gMissionStartTimeSeconds = 0;
 var gMissionDurationSeconds = 0;
 var gRunName = '';
 var gStreamName = '';
 var gSegmentFilename = '';
 var gSegmentStartSeconds = 0;
+
+var gVideoPlaying = false;
+var gLastEventElement = '';
+var gLastEventTimeId = '';
+
 
 var gMissionSeconds = 0;
 var gLastMissionSecondsChecked = 0;
@@ -101,7 +102,6 @@ $( document ).ready(function() {
 
     $.when(ajaxGetRunsJSON(), ajaxGetDBFFieldsKey()).done(function () {
         initializeRun();
-        startInterval();
     });
 });
 
@@ -112,6 +112,10 @@ function initializeRun() {
         gMissionStartTimeSeconds = timeStrToSeconds(runStartDatetimeString.split('T')[1]);
         gMissionDurationSeconds = parseInt(gRunMetadata['run_metadata']['duration_seconds']);
         gRunName = document.getElementById("runSelect").value;
+
+        //load events iframe
+        document.getElementById("iFrameEvents").src = './run_data/' + gRunName + '/_processed/system_events.html';
+
         //display run date
         document.getElementById("missionDateDisplay").innerHTML = runStartDatetimeString.split('T')[0];
 
@@ -130,12 +134,13 @@ function initializeRun() {
         gStreamName = gRunMetadata['videos'][0]['stream_name'];
         loadVideo();
 
-        //load events iframe
-        document.getElementById("iFrameEvents").src = './run_data/' + gRunName + '/_processed/system_events.html';
+        // var timeId = gRunMetadata['videos'][0]['stream_start_datetime'].substring(11, 19).replace(':', '');
+        // scrollToClosestEvent(timeId);
 
         initNavigator();
         createCharts();
         setEventHandlers();
+        startInterval();
     });
 }
 
@@ -187,8 +192,10 @@ function getVideoMetadataByStreamName(streamName) {
 
 function setEventHandlers() {
     document.getElementById("player0").addEventListener("play", function() { startInterval();}, true);
-    document.getElementById("player0").addEventListener("pause", function() { clearInterval(gTimer);}, true);
+    document.getElementById("player0").addEventListener("playing", function() { gVideoPlaying = true;}, true);
+    document.getElementById("player0").addEventListener("pause", function() { gVideoPlaying = false; clearInterval(gTimer);}, true);
     document.getElementById('player0').addEventListener('ended',function() {
+        gVideoPlaying = false;
         if (gSeekClicked === true) {
             //ignore this event
             gSeekClicked = false;
@@ -217,14 +224,15 @@ function startInterval() {
         var videoStartOffsetSeconds = runStartTimeSeconds - videoStreamStartTimeSeconds;
 
         //calc mission time from video
-        gMissionSeconds = parseInt((gSegmentStartSeconds + document.getElementById("player0").currentTime) - videoStartOffsetSeconds);
+        if (gVideoPlaying)
+            gMissionSeconds = parseInt((gSegmentStartSeconds + document.getElementById("player0").currentTime) - videoStartOffsetSeconds);
         document.getElementById("missionTimeDisplay").innerHTML = secondsToTimeStr(gMissionStartTimeSeconds + gMissionSeconds);
         document.getElementById("missionTimeDisplayGMT").innerHTML = secondsToTimeStr(gMissionStartTimeSeconds + 18000 + gMissionSeconds);
 
         //scroll events to most recent
         if (gMissionSeconds !== gLastMissionSecondsChecked) {
             gLastMissionSecondsChecked = gMissionSeconds;
-            scrollToClosestEvent(runStartTimeSeconds + gMissionSeconds);
+            scrollToClosestEvent(secondsToTimeId(runStartTimeSeconds + gMissionSeconds))
         }
 
         // var closestChartIndex = findChartIndexByMissionTime(gMissionStartTimeSeconds + missionSeconds);
@@ -254,13 +262,15 @@ function pause() {
 
 function seekToTime(timeId) { // events click handling --------------------
     gSeekClicked = true;
+    var runStartTimeSeconds = timeStrToSeconds(gRunMetadata['run_metadata']['start_datetime'].substring(11, 19));
     var clickedSeconds = timeIdToSeconds(timeId);
-    gMissionSeconds = clickedSeconds - timeStrToSeconds(gRunMetadata['run_metadata']['start_datetime'].substring(11, 19));
+    gMissionSeconds = clickedSeconds - runStartTimeSeconds;
     loadVideo();
+    scrollToClosestEvent(timeId);
 }
 
-function scrollToClosestEvent(secondsSearch) {
-    var timeId = parseInt(secondsToTimeId(secondsSearch));
+function scrollToClosestEvent(timeIdParam) {
+    var timeId = parseInt(timeIdParam);
     var scrollTimeId = gEventsIndex[gEventsIndex.length - 1];
     for (var i = 1; i < gEventsIndex.length; ++i) {
         if (timeId < parseInt(gEventsIndex[i])) {
@@ -276,12 +286,13 @@ function scrollEventsToTimeId(timeId) {
         var eventsFrame = $('#iFrameEvents');
         var eventsFrameContents = eventsFrame.contents();
         var eventsContainer = eventsFrameContents.find('.events_container');
-        var eventsElement = eventsFrameContents.find('#eventid' + timeId);
+        var eventsElement = eventsFrameContents.find('.eventid' + timeId);
         eventsFrameContents.find('.eventitem').css("background-color", ""); //clear all element highlights
         eventsElement.css("background-color", '#1e1e1e'); //set new element highlights
 
         var scrollDestination = eventsContainer.scrollTop() + eventsElement.offset().top;
         eventsContainer.animate({scrollTop: scrollDestination}, 500);
+
         gLastEventElement = eventsElement;
         gLastEventTimeId = timeId;
     }
