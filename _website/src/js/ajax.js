@@ -58,6 +58,35 @@ function ajaxGetRunJSON() {
     });
 }
 
+function ajaxGetRunEventsData() {
+    var urlStr = "./run_data/" + gRunName + "/_processed/system_events.csv";
+    return $.ajax({
+        type: "GET",
+        url: urlStr,
+        dataType: "text",
+        success: function(data) {processRunEventsData(data);}
+    });
+}
+
+function processRunEventsData(allText) {
+    var allTextLines = allText.split(/\r\n|\n/);
+
+    for (var i = 0; i < allTextLines.length; i++) {
+        var data = allTextLines[i].split('|');
+        var curRow = 0;
+        if (data[0] !== "") {
+            data[0] = data[0].substring(11, 19);
+            var timeId = timeStrToTimeId(data[0]);
+            gEventsIndex[i] = timeId;
+            gEventsDataLookup[timeId] = curRow;
+            gEventsData.push(data);
+            curRow++;
+        }
+    }
+    console.log("RunEventsData loaded");
+}
+
+
 
 function processSuitTelemetryData(allText) {
     //console.log("processSuitTelemetryData");
@@ -88,28 +117,5 @@ function processSuitTelemetryData(allText) {
             }
         }
         gSuitTelemetryData.push(tempArray)
-    }
-}
-
-function ajaxGetTOC() {
-    var urlStr = "./analog_data/toc.csv";
-    return $.ajax({
-        type: "GET",
-        url: urlStr,
-        dataType: "text",
-        success: function(data) {processTOCData(data);}
-    });
-}
-
-function processTOCData(allText) {
-    var allTextLines = allText.split(/\r\n|\n/);
-
-    for (var i = 0; i < allTextLines.length; i++) {
-        var data = allTextLines[i].split('|');
-
-        var rec = [];
-        rec.push(data[0]);
-        rec.push(data[1]);
-        gTOCData.push(rec);
     }
 }

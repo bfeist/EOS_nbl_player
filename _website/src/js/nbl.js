@@ -78,6 +78,13 @@ var gRunsData = []; //loaded from Ajax. Array of run names that are also folder 
 var gDBFFieldsKeyData = {}; //loaded from Ajax csv
 
 var gRunMetadata = {};
+var gEventsData = [];
+var gEventsIndex = [];
+var gEventsDataLookup = [];
+
+var gLastEventElement = '';
+var gLastEventTimeId = '';
+
 var gMissionStartTimeSeconds = 0;
 var gMissionDurationSeconds = 0;
 var gRunName = '';
@@ -86,20 +93,20 @@ var gSegmentFilename = '';
 var gSegmentStartSeconds = 0;
 
 var gMissionSeconds = 0;
+var gLastMissionSecondsChecked = 0;
+var gSeekClicked = false;
 
 $( document ).ready(function() {
     console.log("ready!");
 
     $.when(ajaxGetRunsJSON(), ajaxGetDBFFieldsKey()).done(function () {
-
         initializeRun();
-        // startInterval();
+        startInterval();
     });
 });
 
 function initializeRun() {
-    $.when(ajaxGetRunJSON()).done(function () {
-
+    $.when(ajaxGetRunJSON(), ajaxGetRunEventsData()).done(function () {
         //set run start time and length
         var runStartDatetimeString = gRunMetadata['run_metadata']['start_datetime'];
         gMissionStartTimeSeconds = timeStrToSeconds(runStartDatetimeString.split('T')[1]);
@@ -117,11 +124,14 @@ function initializeRun() {
             el.value = opt;
             select.appendChild(el);
         }
+
         //select first stream by default
         document.getElementById("videoStreamnameSelect").value = gRunMetadata['videos'][0]['stream_name'];
         gStreamName = gRunMetadata['videos'][0]['stream_name'];
-
         loadVideo();
+
+        //load events iframe
+        document.getElementById("iFrameEvents").src = './run_data/' + gRunName + '/_processed/system_events.html';
 
         initNavigator();
         createCharts();
@@ -145,17 +155,16 @@ function loadVideo() {
     var videoMetadata = getVideoMetadataByStreamName(gStreamName);
 
     //figure out which video segment to play
-    gSegmentFilename = '';
+    //initialize values to last video segment
+    gSegmentFilename = videoMetadata['video_segments'][videoMetadata['video_segments'].length - 1]['segment_filename'];
+    gSegmentStartSeconds = parseInt(videoMetadata['video_segments'][videoMetadata['video_segments'].length - 1]['start_time_seconds']);
+    //loop through to see if earlier segment should be used
     for (var i = 0; i < videoMetadata['video_segments'].length; i++) {
         if (videoMetadata['video_segments'][i]['start_time_seconds'] > gMissionSeconds) {
             gSegmentFilename = videoMetadata['video_segments'][i - 1]['segment_filename'];
             gSegmentStartSeconds = parseInt(videoMetadata['video_segments'][i - 1]['start_time_seconds']);
             break;
         }
-    }
-    if (gSegmentFilename === '') { //if it wasn't found with the above loop, it must be the last element
-        gSegmentFilename = videoMetadata['video_segments'][videoMetadata['video_segments'].length - 1]['segment_filename'];
-        gSegmentStartSeconds = parseInt(videoMetadata['video_segments'][videoMetadata['video_segments'].length - 1]['start_time_seconds']);
     }
 
     source.setAttribute('src', gRunDataURL + gRunName + '/video_feeds/' + gSegmentFilename);
@@ -177,12 +186,17 @@ function getVideoMetadataByStreamName(streamName) {
 }
 
 function setEventHandlers() {
-    var slider = document.getElementById("myRange");
-
     document.getElementById("player0").addEventListener("play", function() { startInterval();}, true);
     document.getElementById("player0").addEventListener("pause", function() { clearInterval(gTimer);}, true);
-    document.getElementById('player0').addEventListener('ended',function() { gMissionSeconds++; loadVideo();}, true);
-
+    document.getElementById('player0').addEventListener('ended',function() {
+        if (gSeekClicked === true) {
+            //ignore this event
+            gSeekClicked = false;
+        } else {
+            gMissionSeconds++;
+            loadVideo();
+        }
+    }, true);
     document.getElementById("runSelect").addEventListener("change", function() {
         gRunName = this.value;
     });
@@ -203,12 +217,15 @@ function startInterval() {
         var videoStartOffsetSeconds = runStartTimeSeconds - videoStreamStartTimeSeconds;
 
         //calc mission time from video
-        gMissionSeconds = videoStartOffsetSeconds + gSegmentStartSeconds + document.getElementById("player0").currentTime;
+        gMissionSeconds = parseInt((gSegmentStartSeconds + document.getElementById("player0").currentTime) - videoStartOffsetSeconds);
         document.getElementById("missionTimeDisplay").innerHTML = secondsToTimeStr(gMissionStartTimeSeconds + gMissionSeconds);
         document.getElementById("missionTimeDisplayGMT").innerHTML = secondsToTimeStr(gMissionStartTimeSeconds + 18000 + gMissionSeconds);
-        // document.getElementById("myRange").value = (missionSeconds * 100) / gMissionDurationSeconds;
 
-        // console.log(document.getElementById("myRange").value);
+        //scroll events to most recent
+        if (gMissionSeconds !== gLastMissionSecondsChecked) {
+            gLastMissionSecondsChecked = gMissionSeconds;
+            scrollToClosestEvent(runStartTimeSeconds + gMissionSeconds);
+        }
 
         // var closestChartIndex = findChartIndexByMissionTime(gMissionStartTimeSeconds + missionSeconds);
         // var chartStartEnd = findChartStartEnd(closestChartIndex);
@@ -233,6 +250,41 @@ function play() {
 function pause() {
     clearInterval(gTimer);
     document.getElementById("player0").pause();
+}
+
+function seekToTime(timeId) { // events click handling --------------------
+    gSeekClicked = true;
+    var clickedSeconds = timeIdToSeconds(timeId);
+    gMissionSeconds = clickedSeconds - timeStrToSeconds(gRunMetadata['run_metadata']['start_datetime'].substring(11, 19));
+    loadVideo();
+}
+
+function scrollToClosestEvent(secondsSearch) {
+    var timeId = parseInt(secondsToTimeId(secondsSearch));
+    var scrollTimeId = gEventsIndex[gEventsIndex.length - 1];
+    for (var i = 1; i < gEventsIndex.length; ++i) {
+        if (timeId < parseInt(gEventsIndex[i])) {
+            scrollTimeId = gEventsIndex[i - 1];
+            break;
+        }
+    }
+    scrollEventsToTimeId(scrollTimeId);
+}
+
+function scrollEventsToTimeId(timeId) {
+    if (gEventsDataLookup.hasOwnProperty(timeId)) {
+        var eventsFrame = $('#iFrameEvents');
+        var eventsFrameContents = eventsFrame.contents();
+        var eventsContainer = eventsFrameContents.find('.events_container');
+        var eventsElement = eventsFrameContents.find('#eventid' + timeId);
+        eventsFrameContents.find('.eventitem').css("background-color", ""); //clear all element highlights
+        eventsElement.css("background-color", '#1e1e1e'); //set new element highlights
+
+        var scrollDestination = eventsContainer.scrollTop() + eventsElement.offset().top;
+        eventsContainer.animate({scrollTop: scrollDestination}, 500);
+        gLastEventElement = eventsElement;
+        gLastEventTimeId = timeId;
+    }
 }
 
 function findChartIndexByMissionTime(seconds) {
@@ -403,5 +455,29 @@ function padZeros(num, size) {
     var s = num + "";
     while (s.length < size) s = "0" + s;
     return s;
+}
+
+function timeIdToTimeStr(timeId) {
+    return timeId.substr(0,3) + ":" + timeId.substr(3,2) + ":" + timeId.substr(5,2);
+}
+
+function timeStrToTimeId(timeStr) {
+    return timeStr.split(":").join("");
+}
+
+function secondsToTimeId(seconds) {
+    return secondsToTimeStr(seconds).split(":").join("");
+}
+
+function timeIdToSeconds(timeId) {
+    var sign = timeId.substr(0,1);
+    var hours = parseInt(timeId.substr(0,2));
+    var minutes = parseInt(timeId.substr(2,2));
+    var seconds = parseInt(timeId.substr(4,2));
+    var signToggle = (sign === "-") ? -1 : 1;
+    var totalSeconds = signToggle * ((Math.abs(hours) * 60 * 60) + (minutes * 60) + seconds);
+    //if (totalSeconds > 230400)
+    //    totalSeconds -= 9600;
+    return totalSeconds;
 }
 

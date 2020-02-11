@@ -1,9 +1,10 @@
-import os, json, shutil, fnmatch, re
+import os, json, shutil, fnmatch, re, csv
 from datetime import datetime
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 from dbfread import DBF
 import subprocess
+from quik import FileLoader
 
 runDataPath = '../_website/_webroot/run_data'
 
@@ -151,7 +152,7 @@ for runName in runList:
             colors.append(file)
             print('Color found: ' + file)
 
-    #process event txt files into _processed/system_events.csv
+    # process event txt files into _processed/system_events.csv
     eventListStr = []
     eventList = []
     print('Processing systems event txt files')
@@ -168,8 +169,8 @@ for runName in runList:
             # if len(timeStamp) == 10:
             #     timeStamp = "0" + timeStamp
             message = match.group(2)
-            isoTimeStr = datetime.strftime(timeVal, "%Y-%m-%dT%H:%M:%S-06:00")
-            eventDataRow = isoTimeStr + '|' + message
+            timeStrISO = datetime.strftime(timeVal, "%Y-%m-%dT%H:%M:%S-06:00")
+            eventDataRow = timeStrISO + '|' + message
             eventList.append(eventDataRow)
     eventList.sort()
     f = open(runProcessedPath + "/system_events.csv", "w")
@@ -177,6 +178,50 @@ for runName in runList:
     for event in eventList:
         f.write(event + '\n')
     f.close()
+
+    # ------------------ Write system events html file
+    template_loader = FileLoader('./templates')
+
+    output_TOC_file_name_and_path = runProcessedPath + "/system_events.html"
+    output_TOC_file = open(output_TOC_file_name_and_path, "w")
+    output_TOC_file.write("")
+    output_TOC_file.close()
+
+    output_TOC_file = open(output_TOC_file_name_and_path, "ab")
+
+    # WRITE HEADER
+    template = template_loader.load_template('template_events_header.html')
+    output_TOC_file.write(template.render({'datarow': 0}, loader=template_loader).encode('utf-8'))
+
+    # WRITE TOC ITEMS
+    prev_depth = 0
+    depth_comparison = "false"
+    timestamp = ""
+    inputFilePath = runProcessedPath + "/system_events.csv"
+    csv.register_dialect('pipes', delimiter='|', doublequote=True, escapechar='\\')
+    reader = csv.reader(open(inputFilePath, "rU"), dialect='pipes')
+    print('Writing consolidated event html to ' + runProcessedPath + '/system_events.html')
+    for row in reader:
+        timestamp = row[0][11:19]
+        timeline_index_id = timestamp.replace(":", "")
+        item_text = row[1]
+        item_URL = timeline_index_id
+        template = template_loader.load_template('template_events_item.html')
+        output_TOC_file.write(
+            template.render(
+            {
+                'timestamp': timestamp,
+                'itemText': item_text,
+                'itemURL': item_URL,
+                "depthComparison": depth_comparison
+            }, loader=template_loader
+            ).encode('utf-8'))
+
+    # WRITE FOOTER
+    template = template_loader.load_template('template_events_footer.html')
+    output_TOC_file.write(template.render({'datarow': 0}, loader=template_loader).encode('utf-8'))
+    output_TOC_file.close()
+
 
     #decode color crew names from converted events txt data (#TODO: this is quite fragile if naming isn't consisten within txt files)
     lastnameByColor = {}
