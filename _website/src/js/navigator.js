@@ -12,8 +12,8 @@ var gNavigatorSecondsPerPixel;
 var gColorCursor = 'red';
 var gColorNavCursor = '#ffff00'; //'yellow';
 var gColorTimeTicks = '#333333';
-var gColorTOCText = "#999999";
-var gColorTOCStroke = "orange";
+var gColorEventText = "#999999";
+var gColorEventStroke = "grey";
 
 var gMouseOnNavigator;
 
@@ -102,30 +102,41 @@ function drawNavigator() {
         }
     }
 
-    //display TOC ticks and text
-    //display TOC ticks at varying heights
-    for (i = 0; i < gTOCData.length; i++) {
-        var itemSecondsFromLeft = timeStrToSeconds(gTOCData[i][0]) - gMissionStartTimeSeconds;
-
+    //display event ticks and text
+    //display event ticks at varying heights
+    for (i = 0; i < gEventsData.length; i++) {
+        var itemSecondsFromLeft = timeStrToSeconds(gEventsData[i][0]) - gMissionStartTimeSeconds;
         itemLocX = itemSecondsFromLeft * gNavigatorPixelsPerSecond;
 
-        var barTop = i * 10;
+        var textPosition = (i % 2) + 1;
+        if (textPosition === 1) {
+            var barTop = 1
+        } else {
+            barTop = 1 + gNavigatorHeight / 4.2;
+        }
 
         var barBottom = barTop + 12 + gFontScaleFactor;
+
         topPoint = new paper.Point(itemLocX, barTop);
         bottomPoint = new paper.Point(itemLocX, barBottom);
         aLine = new paper.Path.Line(topPoint, bottomPoint);
-        aLine.strokeColor = gColorTOCStroke;
+        var eventColorInText = gEventsData[i][1].substring(0, gEventsData[i][1].indexOf(" ")).toLowerCase();
+        if (eventColorInText !== "white" && eventColorInText !== "blue")  {
+            aLine.strokeColor = gColorEventStroke;
+        } else {
+            aLine.strokeColor = eventColorInText;
+        }
+
         gNavGroup.addChild(aLine);
-        var itemText = new paper.PointText({
-            justification: 'left',
-            // fontFamily: graphFontFamily,
-            fontSize: 10 + gFontScaleFactor,
-            fillColor: gColorTOCText
-        });
-        itemText.point = new paper.Point(itemLocX + 2 , barBottom - 2);
-        itemText.content = gTOCData[i][1];
-        gNavGroup.addChild(itemText);
+        // var itemText = new paper.PointText({
+        //     justification: 'left',
+        //     // fontFamily: graphFontFamily,
+        //     fontSize: 10 + gFontScaleFactor,
+        //     fillColor: gColorEventText
+        // });
+        // itemText.point = new paper.Point(itemLocX + 2 , barBottom - 2);
+        // itemText.content = gEventsData[i][1];
+        // gNavGroup.addChild(itemText);
     }
 }
 

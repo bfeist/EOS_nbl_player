@@ -291,14 +291,15 @@ for runName in runList:
     tempDict['duration_seconds'] = (latestStopTime - earliestStartTime).total_seconds()
     projectDict['run_metadata'] = tempDict.copy()
 
-    tempDict = {}
+    tempDict = []
     for color in colors:
         tempDict2 = {}
+        tempDict2['color'] = color.lower()
         tempDict2['firstname'] = firstnameByColor[color]
         tempDict2['lastname'] = lastnameByColor[color]
         #find corresponding last name in video data to infer EV number
         tempDict2['EV_number'] = EVByLastName[lastnameByColor[color].lower()]
-        tempDict[color.lower()] = tempDict2.copy()
+        tempDict.append(tempDict2.copy())
     projectDict['colors'] = tempDict.copy()
 
     projectDict['videos'] = videoStreamList.copy()

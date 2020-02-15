@@ -50,6 +50,14 @@ function processDBFFieldsKey(allText) {
     console.log("DBF fields key data loaded");
 }
 
+function ajaxGetDBFTagnamesJSON(colorName) {
+    var urlStr = gRunDataURL + gRunName + '/_processed/telemetry/' + colorName + "_tagname.json";
+    return $.getJSON(urlStr,
+       function(data) {
+           gDBFTagnameData[colorName] = data;
+    });
+}
+
 function ajaxGetRunJSON() {
     return $.getJSON(gRunDataURL + gRunName + '/_processed/run_metadata.json', function(data) {
         gRunMetadata = data;
@@ -86,6 +94,25 @@ function processRunEventsData(allText) {
     console.log("RunEventsData loaded");
 }
 
+function ajaxGetDBFTelemetryByIndexNumber(colorName, indexNumber) {
+    var urlStr = gRunDataURL + gRunName + '/_processed/telemetry/' + colorName + "_" + indexNumber + ".csv";
+    return $.ajax({
+        type: "GET",
+        url: urlStr,
+        dataType: "text",
+        success: function(data) {
+            var allTextLines = data.split(/\r\n|\n/);
+            var resultArray = [];
+            for (var i = 0; i < allTextLines.length; i++) {
+                var rowArray = allTextLines[i].split('|');
+
+                var curRow = 0;
+                resultArray.push([rowArray[0], rowArray[2]])
+            }
+            gDBFTelemetryData[colorName] = resultArray;
+        }
+    });
+}
 
 
 function processSuitTelemetryData(allText) {

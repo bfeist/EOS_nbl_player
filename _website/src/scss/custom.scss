@@ -134,6 +134,22 @@ ul.events_li_1 li:hover {
   background-color: #1e1e1e;
 }
 
+
+//--------------
+.panel > .panel-heading {
+  background-image: none;
+  background-color: #1e1e1e;
+  color: white;
+}
+
+.panel > .panel-body {
+  background-image: none;
+  background-color: #000000;
+  color: #999999;
+}
+
+//--------------
+
 /* ----------------- SCROLLBAR -----------------*/
 ::-webkit-scrollbar {
   width: 8px;

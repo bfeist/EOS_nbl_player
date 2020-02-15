@@ -69,13 +69,15 @@ var gChartLayout = {
 };
 
 var gSuitTelemetryData = [];
-var gTOCData = [];
 var gTimer;
 var gFieldNames = [];
 
 var gRunDataURL = './run_data/';
 var gRunsData = []; //loaded from Ajax. Array of run names that are also folder names for that run's data
 var gDBFFieldsKeyData = {}; //loaded from Ajax csv
+var gDBFTagnameData = [];
+var gDBFTelemetryfieldNames = {};
+var gDBFTelemetryData = {};
 
 var gRunMetadata = {};
 var gEventsData = [];
@@ -119,6 +121,16 @@ function initializeRun() {
         //display run date
         document.getElementById("missionDateDisplay").innerHTML = runStartDatetimeString.split('T')[0];
 
+        //display crew details
+        document.getElementById("valCrew0color").innerHTML = gRunMetadata['colors'][0]['color'];
+        document.getElementById("valCrew1color").innerHTML = gRunMetadata['colors'][1]['color'];
+
+        document.getElementById("valCrew0ev").innerHTML = gRunMetadata['colors'][0]['EV_number'];
+        document.getElementById("valCrew1ev").innerHTML = gRunMetadata['colors'][1]['EV_number'];
+
+        document.getElementById("valCrew0name").innerHTML = gRunMetadata['colors'][0]['lastname'] + ', ' + gRunMetadata['colors'][0]['firstname'];
+        document.getElementById("valCrew1name").innerHTML = gRunMetadata['colors'][1]['lastname'] + ', ' + gRunMetadata['colors'][1]['firstname'];
+
         //populate run video streams dropdown
         var select = document.getElementById("videoStreamnameSelect");
         for(var i = 0; i < gRunMetadata['videos'].length; i++) {
@@ -134,13 +146,28 @@ function initializeRun() {
         gStreamName = gRunMetadata['videos'][0]['stream_name'];
         loadVideo();
 
-        // var timeId = gRunMetadata['videos'][0]['stream_start_datetime'].substring(11, 19).replace(':', '');
-        // scrollToClosestEvent(timeId);
+        // get DBF Tagname JSONs for both colors
+        $.when(ajaxGetDBFTagnamesJSON(gRunMetadata['colors'][0]['color']), ajaxGetDBFTagnamesJSON(gRunMetadata['colors'][1]['color'])).done(function () {
+            //display DBF Tagname and populate dropdowns
+            document.getElementById("valTelemetry0color").innerHTML = gRunMetadata['colors'][0]['color'];
+            document.getElementById("valTelemetry1color").innerHTML = gRunMetadata['colors'][1]['color'];
 
-        initNavigator();
-        createCharts();
-        setEventHandlers();
-        startInterval();
+            for (var i = 0; i < gRunMetadata['colors'].length; i++) {
+                var select = document.getElementById("valTelemetry" + i + "Select");
+                var colorTagnames = gDBFTagnameData[gRunMetadata['colors'][i]['color']];
+               for (var y = 0; y < colorTagnames.length; y++) {
+                   var el = document.createElement("option");
+                   el.textContent = colorTagnames[y]['Tagname'];
+                   el.value = colorTagnames[y]['TTagIndex'];
+                   select.appendChild(el);
+               }
+            }
+            initNavigator();
+            createCharts();
+            setEventHandlers();
+            startInterval();
+        });
+
     });
 }
 
@@ -212,6 +239,34 @@ function setEventHandlers() {
         gStreamName = this.value;
         loadVideo();
     });
+
+    document.getElementById("valTelemetry0Select").addEventListener("change", function() {
+        gDBFTelemetryfieldNames[gRunMetadata['colors'][0]['color']] = this.value;
+        ajaxGetDBFTelemetryByIndexNumber(gRunMetadata['colors'][0]['color'], this.value);
+
+        var sel = document.getElementById("valTelemetry0Select");
+        var dropdownText = sel.options[sel.selectedIndex].text;
+        dropdownText = dropdownText.split("\\")[2];
+        var descStr = gDBFFieldsKeyData[dropdownText]['description'] + " "
+            + gDBFFieldsKeyData[dropdownText]['low_value'] + " to "
+            + gDBFFieldsKeyData[dropdownText]['high_value'] + " "
+            + gDBFFieldsKeyData[dropdownText]['units'];
+        document.getElementById("valTelemetry0Description").innerHTML = descStr;
+    });
+
+    document.getElementById("valTelemetry1Select").addEventListener("change", function() {
+        gDBFTelemetryfieldNames[gRunMetadata['colors'][1]['color']] = this.value;
+        ajaxGetDBFTelemetryByIndexNumber(gRunMetadata['colors'][1]['color'], this.value);
+
+        var sel = document.getElementById("valTelemetry1Select");
+        var dropdownText = sel.options[sel.selectedIndex].text;
+        dropdownText = dropdownText.split("\\")[2];
+        descStr = gDBFFieldsKeyData[dropdownText]['description'] + " "
+            + gDBFFieldsKeyData[dropdownText]['low_value'] + " to "
+            + gDBFFieldsKeyData[dropdownText]['high_value'] + " "
+            + gDBFFieldsKeyData[dropdownText]['units'];
+        document.getElementById("valTelemetry1Description").innerHTML = descStr;
+    });
 }
 
 function startInterval() {
@@ -233,6 +288,19 @@ function startInterval() {
         if (gMissionSeconds !== gLastMissionSecondsChecked) {
             gLastMissionSecondsChecked = gMissionSeconds;
             scrollToClosestEvent(secondsToTimeId(runStartTimeSeconds + gMissionSeconds))
+        }
+
+        //populate telemetry values
+        for (var colorCounter = 0; colorCounter < gRunMetadata['colors'].length; colorCounter++) {
+            if (gDBFTelemetryData[gRunMetadata['colors'][colorCounter]['color']]) {
+                var telemetryData = gDBFTelemetryData[gRunMetadata['colors'][colorCounter]['color']];
+                for (var i = 0; i < telemetryData.length; i++) {
+                    if (timeStrToSeconds(telemetryData[i][0]) - gMissionStartTimeSeconds >= gMissionSeconds) {
+                        document.getElementById("valTelemetry" + colorCounter + "Value").innerHTML = parseFloat(telemetryData[i][1]).toFixed(2);
+                        break;
+                    }
+                }
+            }
         }
 
         // var closestChartIndex = findChartIndexByMissionTime(gMissionStartTimeSeconds + missionSeconds);
