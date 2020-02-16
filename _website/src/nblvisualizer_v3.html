@@ -34,10 +34,12 @@
                         <h3>NBL Visualizer V3 - Automated Import<small> </small></h3>
                     </div>
                     <div class="col-md-6 col-sm-6 col-xs-12 text-center">
-                        Run Name:
-                        <select id="runSelect">
-                            <option value="">Run Name</option>
-                        </select>
+                        <div class="form-group form-inline">
+                            <label for="runSelect">Run Name:</label>
+                            <select class="form-control"  id="runSelect">
+                                <option value="">Run Name</option>
+                            </select>
+                        </div>
                         <h4>Mission Time: <span id="missionDateDisplay">YYYY/MM/DD</span>  <span id="missionTimeDisplay">HH:MM:SS</span> CDT | GMT: <span id="missionTimeDisplayGMT">HH:MM:SS</span></h4>
                     </div>
                     <div class="col-md-2 col-sm-2 col-xs-12 text-right">
@@ -57,10 +59,12 @@
                             </div>
                             <div class="x_content row">
                                 <div class="col-md-6 col-sm-6 col-xs-12">
-                                    Video Stream:
-                                    <select id="videoStreamnameSelect">
-                                        <option value="">Video Stream Name</option>
-                                    </select>
+                                    <div class="form-group form-inline">
+                                        <label for="videoStreamnameSelect">Video Stream:</label>
+                                        <select class="form-control" id="videoStreamnameSelect">
+                                            <option value="">Video Stream Name</option>
+                                        </select>
+                                    </div>
                                     <div class="embed-responsive embed-responsive-16by9" id="videocontainer">
                                         <video class="embed-responsive-item" id="player0" controls></video>
                                     </div>
@@ -93,9 +97,9 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-md-5 col-sm-5 col-xs-12">
+                                <div class="col-md-6 col-sm-6 col-xs-12">
                                     <div class="panel panel-default">
-                                        <div class="panel-heading">Telemetry Values</div>
+                                        <div class="panel-heading">Telemetry Value Sampler</div>
                                         <div class="panel-body">
                                             <table class="table table-dark">
                                                 <thead>
@@ -106,22 +110,18 @@
                                                 </thead>
                                                 <tbody>
                                                 <tr>
-                                                    <td>Field Name</td>
-                                                    <td>Value</td>
-                                                    <td>Field Name</td>
-                                                    <td>Value</td>
-                                                </tr>
-                                                <tr>
                                                     <td>
-                                                        <select id="valTelemetry0Select">
-                                                            <option value="">Field names</option>
-                                                        </select>
+                                                        <div class="form-group form-inline">
+                                                            <select class="form-control" id="valTelemetry0Select">
+                                                            </select>
+                                                        </div>
                                                     </td>
                                                     <td><span id="valTelemetry0Value"></span></td>
                                                     <td>
-                                                        <select id="valTelemetry1Select">
-                                                            <option value="">Field names</option>
-                                                        </select>
+                                                        <div class="form-group form-inline">
+                                                            <select class="form-control" id="valTelemetry1Select">
+                                                            </select>
+                                                        </div>
                                                     </td>
                                                     <td><span id="valTelemetry1Value"></span></td>
                                                 </tr>
@@ -135,12 +135,16 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="row">
-                                <div class="col-xs-12">
-                                    <div class="x_title">
-                                        <h2>Depth (feet)</h2>
-                                        <div class="clearfix"></div>
+                            <div class="x_content row">
+                                <div class="col-xs-2">
+                                    <div class="form-group form-inline">
+                                        <label for="chartSelect">Chart:</label>
+                                        <select class="form-control" id="chartSelect"></select>
                                     </div>
+                                </div>
+                            </div>
+                            <div class="x_content row">
+                                <div class="col-xs-12">
                                     <div class="plotlychart" id="allChart"></div>
                                 </div>
                             </div>

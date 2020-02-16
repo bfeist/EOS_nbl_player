@@ -33,15 +33,17 @@ var gChartLayout = {
         linecolor: '#FFFFFF',
         linewidth: 1,
         showticklabels: true,
+        nticks: 50,
         ticks: 'inside',
         tickfont: {
             size: 12,
             color: labelcolor
         },
+        tickformat: '%H:%M:%S',
         automargin: true,
         hoverinfo: 'y',
         // hoverformat: '.2r',
-        type:'-'
+        type: 'date'
     },
     yaxis: {
         autorange: true,
@@ -152,12 +154,15 @@ function initializeRun() {
         $.when(ajaxGetDBFTagnamesJSON(gRunMetadata['colors'][0]['color']),
             ajaxGetDBFTagnamesJSON(gRunMetadata['colors'][1]['color']),
             ajaxGetDBFTelemetryForChartByIndexNumber(gRunMetadata['colors'][0]['color'], 0),
-            ajaxGetDBFTelemetryForChartByIndexNumber(gRunMetadata['colors'][1]['color'], 0)
+            ajaxGetDBFTelemetryForChartByIndexNumber(gRunMetadata['colors'][1]['color'], 0),
+            ajaxGetDBFTelemetryByIndexNumber(gRunMetadata['colors'][0]['color'], 0),
+            ajaxGetDBFTelemetryByIndexNumber(gRunMetadata['colors'][1]['color'], 0)
         ).done(function () {
             //display DBF Tagname and populate dropdowns
             document.getElementById("valTelemetry0color").innerHTML = gRunMetadata['colors'][0]['color'];
             document.getElementById("valTelemetry1color").innerHTML = gRunMetadata['colors'][1]['color'];
 
+            //populate telemetry values dropdowns
             for (var i = 0; i < gRunMetadata['colors'].length; i++) {
                 var select = document.getElementById("valTelemetry" + i + "Select");
                 var colorTagnames = gDBFTagnameData[gRunMetadata['colors'][i]['color']];
@@ -168,6 +173,42 @@ function initializeRun() {
                    select.appendChild(el);
                }
             }
+
+            //populate chart dropdowns
+            //only put in primary values that are available for both colors
+            var color0Tagnames = gDBFTagnameData[gRunMetadata['colors'][0]['color']];
+            var color1Tagnames = gDBFTagnameData[gRunMetadata['colors'][1]['color']];
+            select = document.getElementById("chartSelect");
+            for (i = 0; i < color0Tagnames.length; i++) {
+                var tag0Array = color0Tagnames[i]['Tagname'].split('\\');
+                if (tag0Array[1] === 'P') { //if primary telemetry value
+                    var tag1Array = [];
+                    for (y = 0; y < color1Tagnames.length; y++) {
+                        tag1Array = color1Tagnames[y]['Tagname'].split('\\');
+                        if (tag1Array[1] === 'P' && tag1Array[2] === tag0Array[2]) {
+                            var el = document.createElement("option");
+                            el.textContent = tag0Array[2];
+                            el.value = i + ',' + y;
+                            select.appendChild(el);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            //select default telemetry descriptions
+            var sel = document.getElementById("valTelemetry0Select");
+            //display description
+            var dropdownText = sel.options[sel.selectedIndex].text;
+            dropdownText = dropdownText.split("\\")[2];
+            document.getElementById("valTelemetry0Description").innerHTML = getDescription(dropdownText);
+
+            sel = document.getElementById("valTelemetry1Select");
+            //display description
+            dropdownText = sel.options[sel.selectedIndex].text;
+            dropdownText = dropdownText.split("\\")[2];
+            document.getElementById("valTelemetry1Description").innerHTML = getDescription(dropdownText);
+
             initNavigator();
             createCharts();
             setEventHandlers();
@@ -175,52 +216,6 @@ function initializeRun() {
         });
 
     });
-}
-
-function loadVideo() {
-
-    var video = document.getElementById('player0');
-    var checkSourceExists = document.getElementById("player0source");
-    if(!checkSourceExists) {
-        var source = document.createElement('source');
-        source.setAttribute("id", "player0source");
-        video.appendChild(source);
-    } else {
-        source = document.getElementById("player0source");
-    }
-
-    //get video metadata
-    var videoMetadata = getVideoMetadataByStreamName(gStreamName);
-
-    //figure out which video segment to play
-    //initialize values to last video segment
-    gSegmentFilename = videoMetadata['video_segments'][videoMetadata['video_segments'].length - 1]['segment_filename'];
-    gSegmentStartSeconds = parseInt(videoMetadata['video_segments'][videoMetadata['video_segments'].length - 1]['start_time_seconds']);
-    //loop through to see if earlier segment should be used
-    for (var i = 0; i < videoMetadata['video_segments'].length; i++) {
-        if (videoMetadata['video_segments'][i]['start_time_seconds'] > gMissionSeconds) {
-            gSegmentFilename = videoMetadata['video_segments'][i - 1]['segment_filename'];
-            gSegmentStartSeconds = parseInt(videoMetadata['video_segments'][i - 1]['start_time_seconds']);
-            break;
-        }
-    }
-
-    source.setAttribute('src', gRunDataURL + gRunName + '/video_feeds/' + gSegmentFilename);
-
-    video.load();
-    video.muted = true;
-
-    //figure out how many seconds into video to seek to get to gMissionSeconds
-    video.currentTime = gMissionSeconds - gSegmentStartSeconds;
-    video.play();
-}
-
-function getVideoMetadataByStreamName(streamName) {
-    for (var i = 0; i < gRunMetadata['videos'].length; i++) {
-        if (gRunMetadata['videos'][i]['stream_name'] === streamName) {
-            return gRunMetadata['videos'][i];
-        }
-    }
 }
 
 function setEventHandlers() {
@@ -250,28 +245,30 @@ function setEventHandlers() {
         gDBFTelemetryfieldNames[gRunMetadata['colors'][0]['color']] = this.value;
         ajaxGetDBFTelemetryByIndexNumber(gRunMetadata['colors'][0]['color'], this.value);
 
-        var sel = document.getElementById("valTelemetry0Select");
-        var dropdownText = sel.options[sel.selectedIndex].text;
+        //display description
+        var dropdownText = this.options[this.selectedIndex].text;
         dropdownText = dropdownText.split("\\")[2];
-        var descStr = gDBFFieldsKeyData[dropdownText]['description'] + " "
-            + gDBFFieldsKeyData[dropdownText]['low_value'] + " to "
-            + gDBFFieldsKeyData[dropdownText]['high_value'] + " "
-            + gDBFFieldsKeyData[dropdownText]['units'];
-        document.getElementById("valTelemetry0Description").innerHTML = descStr;
+        document.getElementById("valTelemetry0Description").innerHTML = getDescription(dropdownText);
     });
 
     document.getElementById("valTelemetry1Select").addEventListener("change", function() {
         gDBFTelemetryfieldNames[gRunMetadata['colors'][1]['color']] = this.value;
         ajaxGetDBFTelemetryByIndexNumber(gRunMetadata['colors'][1]['color'], this.value);
 
-        var sel = document.getElementById("valTelemetry1Select");
-        var dropdownText = sel.options[sel.selectedIndex].text;
+        //display description
+        var dropdownText = this.options[this.selectedIndex].text;
         dropdownText = dropdownText.split("\\")[2];
-        var descStr = gDBFFieldsKeyData[dropdownText]['description'] + " "
-            + gDBFFieldsKeyData[dropdownText]['low_value'] + " to "
-            + gDBFFieldsKeyData[dropdownText]['high_value'] + " "
-            + gDBFFieldsKeyData[dropdownText]['units'];
-        document.getElementById("valTelemetry1Description").innerHTML = descStr;
+        document.getElementById("valTelemetry1Description").innerHTML = getDescription(dropdownText);
+    });
+
+    document.getElementById("chartSelect").addEventListener("change", function() {
+        var fieldIndexes = this.value.split(',');
+        $.when(
+            ajaxGetDBFTelemetryForChartByIndexNumber(gRunMetadata['colors'][0]['color'], fieldIndexes[0]),
+            ajaxGetDBFTelemetryForChartByIndexNumber(gRunMetadata['colors'][1]['color'], fieldIndexes[1])
+        ).done(function () {
+            createCharts();
+        });
     });
 }
 
@@ -325,6 +322,52 @@ function startInterval() {
     },1000);
 }
 
+function loadVideo() {
+
+    var video = document.getElementById('player0');
+    var checkSourceExists = document.getElementById("player0source");
+    if(!checkSourceExists) {
+        var source = document.createElement('source');
+        source.setAttribute("id", "player0source");
+        video.appendChild(source);
+    } else {
+        source = document.getElementById("player0source");
+    }
+
+    //get video metadata
+    var videoMetadata = getVideoMetadataByStreamName(gStreamName);
+
+    //figure out which video segment to play
+    //initialize values to last video segment
+    gSegmentFilename = videoMetadata['video_segments'][videoMetadata['video_segments'].length - 1]['segment_filename'];
+    gSegmentStartSeconds = parseInt(videoMetadata['video_segments'][videoMetadata['video_segments'].length - 1]['start_time_seconds']);
+    //loop through to see if earlier segment should be used
+    for (var i = 0; i < videoMetadata['video_segments'].length; i++) {
+        if (videoMetadata['video_segments'][i]['start_time_seconds'] > gMissionSeconds) {
+            gSegmentFilename = videoMetadata['video_segments'][i - 1]['segment_filename'];
+            gSegmentStartSeconds = parseInt(videoMetadata['video_segments'][i - 1]['start_time_seconds']);
+            break;
+        }
+    }
+
+    source.setAttribute('src', gRunDataURL + gRunName + '/video_feeds/' + gSegmentFilename);
+
+    video.load();
+    video.muted = true;
+
+    //figure out how many seconds into video to seek to get to gMissionSeconds
+    video.currentTime = gMissionSeconds - gSegmentStartSeconds;
+    video.play();
+}
+
+function getVideoMetadataByStreamName(streamName) {
+    for (var i = 0; i < gRunMetadata['videos'].length; i++) {
+        if (gRunMetadata['videos'][i]['stream_name'] === streamName) {
+            return gRunMetadata['videos'][i];
+        }
+    }
+}
+
 function play() {
     document.getElementById("player0").play();
     startInterval();
@@ -372,6 +415,14 @@ function scrollEventsToTimeId(timeId) {
     }
 }
 
+function getDescription(selectedText) {
+    var descStr = gDBFFieldsKeyData[selectedText]['description'] + " "
+        + gDBFFieldsKeyData[selectedText]['low_value'] + " to "
+        + gDBFFieldsKeyData[selectedText]['high_value'] + " "
+        + gDBFFieldsKeyData[selectedText]['units'];
+    return descStr;
+}
+
 function findChartIndexByMissionTime(seconds, color) {
     var telemetryData = gDBFChartTelemetryData[color];
     for (var i=0; i < telemetryData[0].length; i++) {
@@ -406,12 +457,16 @@ function createCharts() {
             // width: 1,
             color: gRunMetadata['colors'][1]['color']
         },
-        name: gRunMetadata['colors'][1]['color'] + "  Depth"
+        name: gRunMetadata['colors'][1]['color']
     };
 
-    var depthLayout = JSON.parse(JSON.stringify(gChartLayout));
-    depthLayout['yaxis']['autorange'] = 'reversed';
-    Plotly.newPlot('allChart', [chartAllTrace1, chartAllTrace2], depthLayout, {displayModeBar: false});
+    var chartLayout = JSON.parse(JSON.stringify(gChartLayout));
+    var sel = document.getElementById("chartSelect");
+    if (sel.options[sel.selectedIndex].value === '0,0') { //if depth chart, then reverse y axis
+        chartLayout['yaxis']['autorange'] = 'reversed';
+    }
+
+    Plotly.newPlot('allChart', [chartAllTrace1, chartAllTrace2], chartLayout, {displayModeBar: false});
 
 
     var classname = document.getElementsByClassName("plotlychart");

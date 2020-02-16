@@ -114,8 +114,8 @@ function ajaxGetDBFTelemetryByIndexNumber(colorName, indexNumber) {
     });
 }
 
-function ajaxGetDBFTelemetryForChartByIndexNumber(colorName) {
-    var urlStr = gRunDataURL + gRunName + '/_processed/telemetry/' + colorName + "_0.csv";
+function ajaxGetDBFTelemetryForChartByIndexNumber(colorName, indexNumber) {
+    var urlStr = gRunDataURL + gRunName + '/_processed/telemetry/' + colorName + "_" + indexNumber + ".csv";
     return $.ajax({
         type: "GET",
         url: urlStr,
@@ -129,9 +129,11 @@ function ajaxGetDBFTelemetryForChartByIndexNumber(colorName) {
             for (var i = 0; i < allTextLines.length; i++) {
                 var rowArray = allTextLines[i].split('|');
                 // timeValuesArray.push(timeStrToSeconds(rowArray[0]));
-                timeStrValuesArray.push(rowArray[0]);
-                timeDisplayValuesArray.push('2020-01-23 ' + rowArray[0]);
-                dataValuesArray.push(parseFloat(rowArray[2]));
+                if (rowArray[0] !== '') {
+                    timeStrValuesArray.push(rowArray[0]);
+                    timeDisplayValuesArray.push('2020-01-23 ' + rowArray[0]);
+                    dataValuesArray.push(parseFloat(rowArray[2]));
+                }
             }
 
             gDBFChartTelemetryData[colorName].push(timeStrValuesArray);
