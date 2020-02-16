@@ -209,6 +209,12 @@ function initializeRun() {
             dropdownText = dropdownText.split("\\")[2];
             document.getElementById("valTelemetry1Description").innerHTML = getDescription(dropdownText);
 
+            //select default chart description
+            //display description
+            sel = document.getElementById("chartSelect");
+            dropdownText = sel.options[sel.selectedIndex].text;
+            document.getElementById("valChartDescription").innerHTML = getDescription(dropdownText);
+
             initNavigator();
             createCharts();
             setEventHandlers();
@@ -269,6 +275,9 @@ function setEventHandlers() {
         ).done(function () {
             createCharts();
         });
+        //display description
+        var dropdownText = this.options[this.selectedIndex].text;
+        document.getElementById("valChartDescription").innerHTML = getDescription(dropdownText);
     });
 }
 
