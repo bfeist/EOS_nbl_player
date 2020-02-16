@@ -276,9 +276,13 @@ for runName in runList:
                 for tagnameRec in DBFTagnameData:
                     print('Writing wide ' + color.lower() + "_" + str(tagnameRec['TTagIndex']) + '.csv')
                     writer = open(runProcessedPath + '/telemetry/' + color.lower() + '_' + str(tagnameRec['TTagIndex']) + '.csv', "w")
+                    # output only one line per second max
+                    lastTime = ''
                     for wideRec in DBFWideData:
-                        outputLine = '{0}|{1}|{2}\n'.format(wideRec['Time'], wideRec['Millitm'], wideRec[str(tagnameRec['TTagIndex'])])
-                        writer.write(outputLine)
+                        if wideRec['Time'] != lastTime:
+                            outputLine = '{0}|{1}|{2}\n'.format(wideRec['Time'], wideRec['Millitm'], wideRec[str(tagnameRec['TTagIndex'])])
+                            lastTime = wideRec['Time']
+                            writer.write(outputLine)
                     writer.close()
 
     #------------------

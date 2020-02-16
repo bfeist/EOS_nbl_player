@@ -114,35 +114,29 @@ function ajaxGetDBFTelemetryByIndexNumber(colorName, indexNumber) {
     });
 }
 
-
-function processSuitTelemetryData(allText) {
-    //console.log("processSuitTelemetryData");
-    var allTextLines = allText.split(/\r\n|\n/);
-
-    //create dictionary from headers
-    var headers = allTextLines[0].split('|');
-    gFieldNames['Time'] = 0;
-    for (var i = 1; i < headers.length; i++) {
-        gFieldNames[headers[i]] = i;
-    }
-
-    var allDataArray = [];
-    for (i = 1; i < allTextLines.length; i++) {
-        var data = allTextLines[i].split('|');
-        allDataArray.push(data);
-    }
-    // pivot array to have one subarray per column
-    for (var telemetryIndexCounter = 0; telemetryIndexCounter <= 88; telemetryIndexCounter++) {
-        var tempArray = [];
-        for (var datapointCounter = 0; datapointCounter < allDataArray.length; datapointCounter++) {
-            if (telemetryIndexCounter === 0) {
-                // ADD FUDGE for telemetry data being 1 minute fast in provided data stream
-                var tempsec = timeStrToSeconds(allDataArray[datapointCounter][telemetryIndexCounter]);
-                tempArray.push(secondsToTimeStr(tempsec + 170));
-            } else {
-                tempArray.push(allDataArray[datapointCounter][telemetryIndexCounter]);
+function ajaxGetDBFTelemetryForChartByIndexNumber(colorName) {
+    var urlStr = gRunDataURL + gRunName + '/_processed/telemetry/' + colorName + "_0.csv";
+    return $.ajax({
+        type: "GET",
+        url: urlStr,
+        dataType: "text",
+        success: function(data) {
+            gDBFChartTelemetryData[colorName] = [];
+            var allTextLines = data.split(/\r\n|\n/);
+            var timeStrValuesArray = [];
+            var timeDisplayValuesArray = [];
+            var dataValuesArray = [];
+            for (var i = 0; i < allTextLines.length; i++) {
+                var rowArray = allTextLines[i].split('|');
+                // timeValuesArray.push(timeStrToSeconds(rowArray[0]));
+                timeStrValuesArray.push(rowArray[0]);
+                timeDisplayValuesArray.push('2020-01-23 ' + rowArray[0]);
+                dataValuesArray.push(parseFloat(rowArray[2]));
             }
+
+            gDBFChartTelemetryData[colorName].push(timeStrValuesArray);
+            gDBFChartTelemetryData[colorName].push(timeDisplayValuesArray);
+            gDBFChartTelemetryData[colorName].push(dataValuesArray);
         }
-        gSuitTelemetryData.push(tempArray)
-    }
+    });
 }

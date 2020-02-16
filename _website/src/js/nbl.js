@@ -40,7 +40,8 @@ var gChartLayout = {
         },
         automargin: true,
         hoverinfo: 'y',
-        hoverformat: '.2r'
+        // hoverformat: '.2r',
+        type:'-'
     },
     yaxis: {
         autorange: true,
@@ -78,6 +79,7 @@ var gDBFFieldsKeyData = {}; //loaded from Ajax csv
 var gDBFTagnameData = [];
 var gDBFTelemetryfieldNames = {};
 var gDBFTelemetryData = {};
+var gDBFChartTelemetryData = {};
 
 var gRunMetadata = {};
 var gEventsData = [];
@@ -147,7 +149,11 @@ function initializeRun() {
         loadVideo();
 
         // get DBF Tagname JSONs for both colors
-        $.when(ajaxGetDBFTagnamesJSON(gRunMetadata['colors'][0]['color']), ajaxGetDBFTagnamesJSON(gRunMetadata['colors'][1]['color'])).done(function () {
+        $.when(ajaxGetDBFTagnamesJSON(gRunMetadata['colors'][0]['color']),
+            ajaxGetDBFTagnamesJSON(gRunMetadata['colors'][1]['color']),
+            ajaxGetDBFTelemetryForChartByIndexNumber(gRunMetadata['colors'][0]['color'], 0),
+            ajaxGetDBFTelemetryForChartByIndexNumber(gRunMetadata['colors'][1]['color'], 0)
+        ).done(function () {
             //display DBF Tagname and populate dropdowns
             document.getElementById("valTelemetry0color").innerHTML = gRunMetadata['colors'][0]['color'];
             document.getElementById("valTelemetry1color").innerHTML = gRunMetadata['colors'][1]['color'];
@@ -261,7 +267,7 @@ function setEventHandlers() {
         var sel = document.getElementById("valTelemetry1Select");
         var dropdownText = sel.options[sel.selectedIndex].text;
         dropdownText = dropdownText.split("\\")[2];
-        descStr = gDBFFieldsKeyData[dropdownText]['description'] + " "
+        var descStr = gDBFFieldsKeyData[dropdownText]['description'] + " "
             + gDBFFieldsKeyData[dropdownText]['low_value'] + " to "
             + gDBFFieldsKeyData[dropdownText]['high_value'] + " "
             + gDBFFieldsKeyData[dropdownText]['units'];
@@ -303,16 +309,16 @@ function startInterval() {
             }
         }
 
-        // var closestChartIndex = findChartIndexByMissionTime(gMissionStartTimeSeconds + missionSeconds);
+        var closestChartIndex = findChartIndexByMissionTime(gMissionSeconds + gMissionStartTimeSeconds, gRunMetadata['colors'][0]['color']);
         // var chartStartEnd = findChartStartEnd(closestChartIndex);
-
+        //
         // setChartRange(chartStartEnd);
         // setChartHover(closestChartIndex);
-
-        // Plotly.Fx.hover('allChart', [
-        //     {curveNumber: 0, pointNumber: closestChartIndex},
-        //     {curveNumber: 1, pointNumber: closestChartIndex}
-        // ]);
+        //
+        Plotly.Fx.hover('allChart', [
+            {curveNumber: 0, pointNumber: closestChartIndex},
+            {curveNumber: 1, pointNumber: closestChartIndex}
+        ]);
 
         drawCursor(gMissionStartTimeSeconds + gMissionSeconds)
 
@@ -366,9 +372,10 @@ function scrollEventsToTimeId(timeId) {
     }
 }
 
-function findChartIndexByMissionTime(seconds) {
-    for (var i=0; i < gSuitTelemetryData[gFieldNames['Time']].length; i++) {
-        if (timeStrToSeconds(gSuitTelemetryData[gFieldNames['Time']][i]) > seconds) {
+function findChartIndexByMissionTime(seconds, color) {
+    var telemetryData = gDBFChartTelemetryData[color];
+    for (var i=0; i < telemetryData[0].length; i++) {
+        if (timeStrToSeconds(telemetryData[0][i]) > seconds) {
             var closestIndex = i - 1;
             break;
         }
@@ -379,132 +386,124 @@ function findChartIndexByMissionTime(seconds) {
 function createCharts() {
 
     var chartAllTrace1 = {
-        x:gSuitTelemetryData[gFieldNames['Time']],
-        y:gSuitTelemetryData[gFieldNames['EV2_Depth_(feet)']],
-        type: 'line',
+        x:gDBFChartTelemetryData[gRunMetadata['colors'][0]['color']][1],
+        y:gDBFChartTelemetryData[gRunMetadata['colors'][0]['color']][2],
+        type: 'scatter',
+        mode: 'lines',
         line: {
-            width: 1,
-            color: yellow
+            // width: 1,
+            color: gRunMetadata['colors'][0]['color']
         },
-        name: 'EV2 Depth'
+        name: gRunMetadata['colors'][0]['color'] + "  Depth"
     };
 
     var chartAllTrace2 = {
-        x:gSuitTelemetryData[gFieldNames['Time']],
-        y:gSuitTelemetryData[gFieldNames['EV2_Subject_Depth_(feet)_Calculated_from_suit_pressure)']],
-        type: 'line',
+        x:gDBFChartTelemetryData[gRunMetadata['colors'][1]['color']][1],
+        y:gDBFChartTelemetryData[gRunMetadata['colors'][1]['color']][2],
+        type: 'scatter',
+        mode: 'lines',
         line: {
-            width: 1,
-            color: orange
+            // width: 1,
+            color: gRunMetadata['colors'][1]['color']
         },
-        name: 'EV2 Calc Depth'
-    };
-
-    var chartAllTrace3 = {
-        x:gSuitTelemetryData[gFieldNames['Time']],
-        y:gSuitTelemetryData[gFieldNames['EV1_Depth_(feet)']],
-        type: 'line',
-        line: {
-            width: 1,
-            color: green
-        },
-        name: 'EV1 Depth'
+        name: gRunMetadata['colors'][1]['color'] + "  Depth"
     };
 
     var depthLayout = JSON.parse(JSON.stringify(gChartLayout));
     depthLayout['yaxis']['autorange'] = 'reversed';
-    Plotly.newPlot('allChart', [chartAllTrace1, chartAllTrace2, chartAllTrace3], depthLayout, {displayModeBar: false});
+    Plotly.newPlot('allChart', [chartAllTrace1, chartAllTrace2], depthLayout, {displayModeBar: false});
 
 
     var classname = document.getElementsByClassName("plotlychart");
-    for (i = 0; i < classname.length; i++) {
+    for (var i = 0; i < classname.length; i++) {
         classname[i].on('plotly_click', function(data){
-            document.getElementById("player0").currentTime = timeStrToSeconds(data.points[0].x) - gMissionStartTimeSeconds;
-            if (!document.getElementById("player0").paused) {
-                startInterval();
-            }
+            // document.getElementById("player0").currentTime = timeStrToSeconds(data.points[0].x) - gMissionStartTimeSeconds;
+            // if (!document.getElementById("player0").paused) {
+            //     startInterval();
+            // }
+            seekToTime(timeStrToTimeId(data.points[0].x.substring(data.points[0].x.indexOf(' ') + 1, data.points[0].x.length)));
         });
     }
 }
 
-function findChartStartEnd(closestIndex) {
-    //this code puts the current data point at the far left of the little charts
-    var chartStart = closestIndex;
+// function findChartStartEnd(closestIndex) {
+//     //this code puts the current data point at the far left of the little charts
+//     var chartStart = closestIndex;
+//
+//     if (closestIndex + chartWidth >= gSuitTelemetryData[gFieldNames['Time']].length) {
+//         var chartEnd = gSuitTelemetryData[gFieldNames['Time']].length;
+//     } else {
+//         chartEnd = closestIndex + chartWidth;
+//     }
+//     return [chartStart, chartEnd];
+// }
 
-    if (closestIndex + chartWidth >= gSuitTelemetryData[gFieldNames['Time']].length) {
-        var chartEnd = gSuitTelemetryData[gFieldNames['Time']].length;
-    } else {
-        chartEnd = closestIndex + chartWidth;
-    }
-    return [chartStart, chartEnd];
-}
+// function setChartRange(chartStartEnd) {
+//     var linepoint = chartStartEnd[0] + ((chartStartEnd[1] - chartStartEnd[0]) / 2);
+//
+//     var chartRelayoutProperties = JSON.parse(JSON.stringify(gChartLayout));
+//     chartRelayoutProperties.xaxis.range = [chartStartEnd[0], chartStartEnd[1]];
+//     chartRelayoutProperties.xaxis.autorange = false;
+//
+//     var scatterLayoutProperties = JSON.parse(JSON.stringify(gChartLayout));
+//     scatterLayoutProperties.xaxis.range = [0, 30];
+//     scatterLayoutProperties.yaxis.range = [0, 40];
+//     scatterLayoutProperties.xaxis.autorange = false;
+//     scatterLayoutProperties.yaxis.autorange = false;
+//
+//     Plotly.relayout('Chart1', chartRelayoutProperties);
+//     Plotly.relayout('Chart2', chartRelayoutProperties);
+//     Plotly.relayout('Chart3', chartRelayoutProperties);
+//     Plotly.relayout('Chart5', chartRelayoutProperties);
+//     Plotly.relayout('Chart6', chartRelayoutProperties);
+//     Plotly.relayout('Chart7', chartRelayoutProperties);
+//     Plotly.relayout('Chart8', chartRelayoutProperties);
+//
+//     var chart4Trace1 = {
+//         x:gSuitTelemetryData[gFieldNames['EV2_Suit_Pressure_(psig)']].slice(chartStartEnd[0], chartStartEnd[1]),
+//         y:gSuitTelemetryData[gFieldNames['EV2_Depth_(feet)']].slice(chartStartEnd[0], chartStartEnd[1]),
+//         mode: 'markers',
+//         type: 'scatter',
+//         marker: {
+//             size: 2,
+//             color: yellow
+//         },
+//         name: 'EV2'
+//     };
+//     Plotly.newPlot('Chart4', [chart4Trace1], scatterLayoutProperties, {displayModeBar: false});
+// }
 
-function setChartRange(chartStartEnd) {
-    var linepoint = chartStartEnd[0] + ((chartStartEnd[1] - chartStartEnd[0]) / 2);
-
-    var chartRelayoutProperties = JSON.parse(JSON.stringify(gChartLayout));
-    chartRelayoutProperties.xaxis.range = [chartStartEnd[0], chartStartEnd[1]];
-    chartRelayoutProperties.xaxis.autorange = false;
-
-    var scatterLayoutProperties = JSON.parse(JSON.stringify(gChartLayout));
-    scatterLayoutProperties.xaxis.range = [0, 30];
-    scatterLayoutProperties.yaxis.range = [0, 40];
-    scatterLayoutProperties.xaxis.autorange = false;
-    scatterLayoutProperties.yaxis.autorange = false;
-
-    Plotly.relayout('Chart1', chartRelayoutProperties);
-    Plotly.relayout('Chart2', chartRelayoutProperties);
-    Plotly.relayout('Chart3', chartRelayoutProperties);
-    Plotly.relayout('Chart5', chartRelayoutProperties);
-    Plotly.relayout('Chart6', chartRelayoutProperties);
-    Plotly.relayout('Chart7', chartRelayoutProperties);
-    Plotly.relayout('Chart8', chartRelayoutProperties);
-
-    var chart4Trace1 = {
-        x:gSuitTelemetryData[gFieldNames['EV2_Suit_Pressure_(psig)']].slice(chartStartEnd[0], chartStartEnd[1]),
-        y:gSuitTelemetryData[gFieldNames['EV2_Depth_(feet)']].slice(chartStartEnd[0], chartStartEnd[1]),
-        mode: 'markers',
-        type: 'scatter',
-        marker: {
-            size: 2,
-            color: yellow
-        },
-        name: 'EV2'
-    };
-    Plotly.newPlot('Chart4', [chart4Trace1], scatterLayoutProperties, {displayModeBar: false});
-}
-
-function setChartHover(activeIndex) {
-    Plotly.Fx.hover('depthChart', [
-        {curveNumber: 0, pointNumber: activeIndex},
-        {curveNumber: 1, pointNumber: activeIndex}
-    ]);
-    Plotly.Fx.hover('airflowSCFMChart', [
-        {curveNumber: 0, pointNumber: activeIndex},
-        {curveNumber: 1, pointNumber: activeIndex},
-        {curveNumber: 2, pointNumber: activeIndex},
-        {curveNumber: 3, pointNumber: activeIndex}
-    ]);
-    Plotly.Fx.hover('airflowACFMChart', [
-        {curveNumber: 0, pointNumber: activeIndex},
-        {curveNumber: 1, pointNumber: activeIndex},
-        {curveNumber: 2, pointNumber: activeIndex},
-        {curveNumber: 3, pointNumber: activeIndex}
-
-    ]);
-    Plotly.Fx.hover('coolingWaterChart', [
-        {curveNumber: 0, pointNumber: activeIndex},
-        {curveNumber: 1, pointNumber: activeIndex}
-    ]);
-    Plotly.Fx.hover('pressureChart', [
-        {curveNumber: 0, pointNumber: activeIndex},
-        {curveNumber: 1, pointNumber: activeIndex},
-        {curveNumber: 2, pointNumber: activeIndex},
-        {curveNumber: 3, pointNumber: activeIndex},
-        {curveNumber: 4, pointNumber: activeIndex},
-        {curveNumber: 5, pointNumber: activeIndex}
-    ]);
-}
+// function setChartHover(activeIndex) {
+//     Plotly.Fx.hover('depthChart', [
+//         {curveNumber: 0, pointNumber: activeIndex},
+//         {curveNumber: 1, pointNumber: activeIndex}
+//     ]);
+//     Plotly.Fx.hover('airflowSCFMChart', [
+//         {curveNumber: 0, pointNumber: activeIndex},
+//         {curveNumber: 1, pointNumber: activeIndex},
+//         {curveNumber: 2, pointNumber: activeIndex},
+//         {curveNumber: 3, pointNumber: activeIndex}
+//     ]);
+//     Plotly.Fx.hover('airflowACFMChart', [
+//         {curveNumber: 0, pointNumber: activeIndex},
+//         {curveNumber: 1, pointNumber: activeIndex},
+//         {curveNumber: 2, pointNumber: activeIndex},
+//         {curveNumber: 3, pointNumber: activeIndex}
+//
+//     ]);
+//     Plotly.Fx.hover('coolingWaterChart', [
+//         {curveNumber: 0, pointNumber: activeIndex},
+//         {curveNumber: 1, pointNumber: activeIndex}
+//     ]);
+//     Plotly.Fx.hover('pressureChart', [
+//         {curveNumber: 0, pointNumber: activeIndex},
+//         {curveNumber: 1, pointNumber: activeIndex},
+//         {curveNumber: 2, pointNumber: activeIndex},
+//         {curveNumber: 3, pointNumber: activeIndex},
+//         {curveNumber: 4, pointNumber: activeIndex},
+//         {curveNumber: 5, pointNumber: activeIndex}
+//     ]);
+// }
 
 
 function secondsToTimeStr(totalSeconds) {
@@ -524,7 +523,7 @@ function timeStrToSeconds(timeStr) {
     var hours = parseInt(timeStr.substr(0,2));
     var minutes = parseInt(timeStr.substr(3,2));
     var seconds = parseInt(timeStr.substr(6,2));
-    var signToggle = (sign == "-") ? -1 : 1;
+    var signToggle = (sign === "-") ? -1 : 1;
     var totalSeconds = Math.round(signToggle * ((Math.abs(hours) * 60 * 60) + (minutes * 60) + seconds));
 
     return totalSeconds;
