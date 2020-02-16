@@ -58,18 +58,13 @@
                                 <div class="col-md-6 col-sm-6 col-xs-12">
                                     <div class="form-group form-inline">
                                         <label for="videoStreamnameSelect">Video Stream:</label>
-                                        <select class="form-control" id="videoStreamnameSelect">
-                                            <option value="">Video Stream Name</option>
-                                        </select>
+                                        <select class="form-control" id="videoStreamnameSelect"></select>
                                     </div>
                                     <div class="embed-responsive embed-responsive-16by9" id="videocontainer">
                                         <video class="embed-responsive-item" id="player0" controls></video>
                                     </div>
-                                    <div id="eventsWrapper" class="text-wrapper">
-                                        <iframe src="" class="embed-responsive-item iFrameClass" id="iFrameEvents" name="iFrameEvents" scrolling="yes" height="100%" width="100%"></iframe>
-                                    </div>
                                 </div>
-                                <div class="col-md-4 col-sm-4 col-xs-12">
+                                <div class="col-md-6 col-sm-6 col-xs-12">
                                     <div class="panel panel-default">
                                         <div class="panel-heading">Crew Details</div>
                                         <div class="panel-body">
@@ -109,18 +104,16 @@
                                                 <tr>
                                                     <td>
                                                         <div class="form-group form-inline">
-                                                            <select class="form-control" id="valTelemetry0Select">
-                                                            </select>
+                                                            <select class="form-control" id="valTelemetry0Select"></select>
                                                         </div>
                                                     </td>
-                                                    <td><span id="valTelemetry0Value"></span></td>
+                                                    <td style="color: white; font-size: 1.3em;"><span id="valTelemetry0Value"></span></td>
                                                     <td>
                                                         <div class="form-group form-inline">
-                                                            <select class="form-control" id="valTelemetry1Select">
-                                                            </select>
+                                                            <select class="form-control" id="valTelemetry1Select"></select>
                                                         </div>
                                                     </td>
-                                                    <td><span id="valTelemetry1Value"></span></td>
+                                                    <td style="color: white; font-size: 1.3em;"><span id="valTelemetry1Value"></span></td>
                                                 </tr>
                                                 <tr>
                                                     <td colspan="2"><span id="valTelemetry0Description">Description</span></td>
@@ -129,6 +122,9 @@
                                                 </tbody>
                                             </table>
                                         </div>
+                                    </div>
+                                    <div id="eventsWrapper" class="text-wrapper">
+                                        <iframe src="" class="embed-responsive-item iFrameClass" id="iFrameEvents" name="iFrameEvents" scrolling="yes" height="100%" width="100%"></iframe>
                                     </div>
                                 </div>
                             </div>
