@@ -63,7 +63,6 @@ gulp.task('html', function () {
 
 gulp.task('browser-sync', function () {
     browserSync.init({
-        browser: "chrome",
         injectChanges: true,
         port: 3001,
         open: true,
