@@ -362,7 +362,7 @@ function loadVideo() {
     source.setAttribute('src', gRunDataURL + gRunName + '/video_feeds/' + gSegmentFilename);
 
     video.load();
-    video.muted = true;
+    // video.muted = true;
 
     //figure out how many seconds into video to seek to get to gMissionSeconds
     video.currentTime = gMissionSeconds - gSegmentStartSeconds;
