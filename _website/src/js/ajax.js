@@ -67,7 +67,7 @@ function ajaxGetRunJSON() {
 }
 
 function ajaxGetRunEventsData() {
-    var urlStr = "./run_data/" + gRunName + "/_processed/system_events.csv";
+    var urlStr = gRunDataURL + gRunName + "/_processed/system_events.csv";
     return $.ajax({
         type: "GET",
         url: urlStr,

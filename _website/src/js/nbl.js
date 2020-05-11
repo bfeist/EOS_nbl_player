@@ -75,7 +75,8 @@ var gSuitTelemetryData = [];
 var gTimer;
 var gFieldNames = [];
 
-var gRunDataURL = './run_data/';
+// var gRunDataURL = './run_data/';
+var gRunDataURL = 'https://nbl.apolloinrealtime.org/NBL3/run_data/';
 var gRunsData = []; //loaded from Ajax. Array of run names that are also folder names for that run's data
 var gDBFFieldsKeyData = {}; //loaded from Ajax csv
 var gDBFTagnameData = [];
@@ -120,7 +121,7 @@ function initializeRun() {
         gRunName = document.getElementById("runSelect").value;
 
         //load events iframe
-        document.getElementById("iFrameEvents").src = './run_data/' + gRunName + '/_processed/system_events.html';
+        document.getElementById("iFrameEvents").src = gRunDataURL + gRunName + '/_processed/system_events.html';
 
         //display run date
         document.getElementById("missionDateDisplay").innerHTML = runStartDatetimeString.split('T')[0];

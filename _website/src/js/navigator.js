@@ -18,7 +18,7 @@ var gColorEventStroke = "grey";
 var gMouseOnNavigator;
 
 function initNavigator() {
-    $("body").css("overflow", "hidden");
+    // $("body").css("overflow", "hidden");
     paper.install(window);
     paper.setup('navCanvas');
 
